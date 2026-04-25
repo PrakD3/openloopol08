@@ -17,7 +17,6 @@ Flow:
 import asyncio
 import base64
 import json
-import os
 import statistics
 from pathlib import Path
 from typing import Optional
@@ -28,81 +27,141 @@ from langsmith import traceable
 from PIL import Image
 
 from agents.state import AgentFinding, AgentState
-from config.settings import settings
+from config.settings import is_deprecated_groq_model, settings
 
-# ── Hive AI (Online) ────────────────────────────────────────────────────────
-
-HIVE_API_URL = "https://api.thehive.ai/api/v2/task/sync"
-# Hive returns a list of classes with scores. We look for these class labels:
-HIVE_AI_CLASSES = {"ai_generated", "deepfake", "manipulated_media"}
+# ── Groq Vision (Online/Hybrid) ────────────────────────────────────────────────
 
 
-async def _hive_detect_frame(client: httpx.AsyncClient, frame_path: str) -> float:
+async def _groq_vision_detect_frame(
+    client: httpx.AsyncClient, frame_path: str, model: str
+) -> Optional[dict]:
     """
-    POST a single frame to Hive AI.
-    Returns confidence score 0.0-1.0 that the image is AI-generated.
-    Returns 0.0 on any error (fail-open, do not block analysis).
+    Send a single frame to Groq Llama 3.2 Vision for forensic analysis.
     """
     try:
-        with open(frame_path, "rb") as f:
-            files = {"media": (Path(frame_path).name, f, "image/jpeg")}
-            headers = {"token": settings.hive_api_key}
-            response = await client.post(
-                HIVE_API_URL,
-                headers=headers,
-                files=files,
-                timeout=10.0,
+        # Read and encode image to base64
+        with open(frame_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
+
+        prompt = """
+        Analyse this image for signs of AI generation or deepfake manipulation.
+        Look for:
+        - Unnatural textures or 'smoothing' on skin/hair.
+        - Anatomical errors (weird fingers, overlapping limbs).
+        - Lighting/shadow inconsistencies.
+        - Warped backgrounds or 'liquid' artifacts.
+
+        Answer ONLY in JSON format:
+        {
+          "is_ai_generated": true | false,
+          "confidence_score": <0-1.0>,
+          "findings": ["finding1", "finding2"]
+        }
+        """
+
+        response = await client.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {settings.groq_api_key}"},
+            json={
+                "model": model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:image/jpeg;base64,{encoded_string}"},
+                            },
+                        ],
+                    }
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.1,
+            },
+            timeout=25.0,
+        )
+        if response.status_code != 200:
+            print(
+                f"[DeepFake/GroqVision] HTTP {response.status_code} frame={frame_path} "
+                f"model={model!r} body={response.text[:500]!r}",
+                flush=True,
             )
-            response.raise_for_status()
-            data = response.json()
-            # Navigate: status[0].response.output[0].classes
-            classes = (
-                data.get("status", [{}])[0]
-                .get("response", {})
-                .get("output", [{}])[0]
-                .get("classes", [])
-            )
-            for cls in classes:
-                if cls.get("class", "").lower() in HIVE_AI_CLASSES:
-                    return float(cls.get("score", 0.0))
-            return 0.0
+        response.raise_for_status()
+        data = response.json()
+        return json.loads(data["choices"][0]["message"]["content"])
     except Exception as e:
-        print(f"[DeepFake/Hive] Frame {frame_path} failed: {e}")
-        return 0.0
+        print(
+            f"[DeepFake/GroqVision] Frame {frame_path} failed with model={model!r}: {e}",
+            flush=True,
+        )
+        return None
 
 
-async def _hive_detect(state: AgentState) -> AgentFinding:
-    """Run all keyframes through Hive AI concurrently. Return averaged result."""
+async def _groq_vision_detect(state: AgentState) -> AgentFinding:
+    """
+    Run the first few keyframes through Groq Vision.
+    Useful when Hive API is not available but Groq is.
+    """
     keyframes = state.get("keyframes", [])
     if not keyframes:
         return _error_finding("No keyframes available for analysis")
 
-    async with httpx.AsyncClient() as client:
-        scores = await asyncio.gather(
-            *[_hive_detect_frame(client, frame) for frame in keyframes],
-            return_exceptions=False,
+    # Use max 3 frames to avoid hitting rate limits / high latency
+    target_frames = keyframes[:3]
+    model = settings.groq_vision_model
+
+    print(f"[DeepFake] Using Groq Vision ({model}) for forensics on {len(target_frames)} frames...")
+    if is_deprecated_groq_model(model):
+        print(
+            f"[DeepFake] WARNING: configured Groq vision model {model!r} is deprecated.",
+            flush=True,
         )
 
-    scores_pct = [s * 100 for s in scores]
-    max_score = max(scores_pct) if scores_pct else 0
-    avg_score = statistics.mean(scores_pct) if scores_pct else 0
-    flagged = [keyframes[i] for i, s in enumerate(scores_pct) if s > 60]
+    async with httpx.AsyncClient() as client:
+        results = await asyncio.gather(
+            *[_groq_vision_detect_frame(client, f, model) for f in target_frames]
+        )
+
+    valid_results = [r for r in results if r is not None]
+    print(
+        f"[DeepFake] Groq Vision completed: {len(valid_results)}/{len(target_frames)} "
+        f"frame analyses succeeded",
+        flush=True,
+    )
+    if not valid_results:
+        print("[DeepFake] Groq Vision failed for all frames, using heuristic fallback")
+        return await _heuristic_detect(state)
+
+    # Aggregate results
+    all_findings = []
+    scores = []
+    for r in valid_results:
+        scores.append(float(r.get("confidence_score", 0.0)) * 100)
+        all_findings.extend(r.get("findings", []))
+
+    # Deduplicate findings
+    unique_findings = list(set(all_findings))[:5]
+    avg_score = sum(scores) / len(scores)
+    max_score = max(scores)
 
     return AgentFinding(
         agent_id="deepfake_detector",
         status="done",
-        score=round(max_score),  # Use max (most suspicious frame)
-        findings=_build_findings(max_score, avg_score, flagged, source="Hive AI"),
+        score=round(max_score),
+        findings=_build_findings(max_score, avg_score, unique_findings, source=f"Groq Vision ({model})"),
         detail=json.dumps(
             {
-                "source": "hive_ai",
-                "per_frame_scores": scores_pct,
-                "flagged_frames": [str(f) for f in flagged],
-                "max_score": max_score,
-                "avg_score": avg_score,
+                "source": "groq_vision",
+                "model": model,
+                "per_frame_scores": scores,
+                "findings": unique_findings,
             }
         ),
     )
+
+
+# ── DeepSafe (Offline/Local Docker) ──────────────────────────────────────────
 
 
 # ── DeepSafe (Offline/Local Docker) ──────────────────────────────────────────
@@ -287,17 +346,29 @@ def _error_finding(message: str) -> AgentFinding:
 async def deepfake_detector_node(state: AgentState) -> AgentFinding:
     """
     LangGraph node entry point.
-    Automatically routes to correct detector based on INFERENCE_MODE.
-    Always has a working fallback — this node never raises an exception.
+    Automatically routes to correct detector based on INFERENCE_MODE and availability.
     """
     print(f"\n[AGENT] deepfake_detector: Started AI-generation check...")
     try:
         if settings.inference_mode == "offline":
+            # Priority 1: Local DeepSafe Docker
             return await _deepsafe_detect(state)
         else:
-            return await _hive_detect(state)
+            # Online Mode
+            # Priority 1: Hive AI (if key provided)
+            if settings.hive_api_key:
+                return await _hive_detect(state)
+            
+            # Priority 2: Groq Vision (if key provided) - The "Groq Only" request
+            if settings.groq_api_key:
+                return await _groq_vision_detect(state)
+            
+            # Fallback
+            print("[DeepFake] Online mode but no Hive or Groq key found, using heuristic")
+            return await _heuristic_detect(state)
+            
     except Exception as e:
-        print(f"[DeepFake] All detectors failed: {e}, using heuristic")
+        print(f"[DeepFake] All detectors failed: {e}, using heuristic fallback")
         try:
             return await _heuristic_detect(state)
         except Exception as e2:

@@ -19,6 +19,7 @@ function AnalysisContent() {
   const isDemo = demoParam === null ? config.isDemo : demoParam !== "false";
 
   const { result, isLoading, agentProgress, error, analyze } = useAnalysis();
+  const displayedAgents = agentProgress.length > 0 ? agentProgress : result?.agents ?? [];
 
   // Guard against React StrictMode's intentional double-mount in development,
   // which would fire this effect twice and create two backend jobs for one submit.
@@ -65,8 +66,8 @@ function AnalysisContent() {
 
         <div className="grid lg:grid-cols-12 gap-8">
           <div className="lg:col-span-4">
-            {isLoading || agentProgress.length > 0 ? (
-              <AgentPanel agents={agentProgress} />
+            {isLoading || displayedAgents.length > 0 ? (
+              <AgentPanel agents={displayedAgents} />
             ) : !result ? (
               <div className="flex items-center gap-4 p-6 border-4 border-foreground bg-muted/20 bk-shadow-sm">
                 <Loader2 className="h-8 w-8 animate-spin text-foreground" />

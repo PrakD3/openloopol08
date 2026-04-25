@@ -136,6 +136,46 @@ docker compose logs -f
 docker compose down
 ```
 
+### Fast Docker dev loop (no rebuild per code change)
+
+For hackathon iteration speed, use the dev override with bind mounts + hot reload:
+
+```bash
+# First run (build once)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+
+# Later runs (no rebuild)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+In this mode:
+- Frontend runs `next dev` with file watching
+- Backend runs `uvicorn --reload`
+- Most code edits reflect immediately without image rebuilds
+
+### Hybrid mode (recommended for hackathons)
+
+Run only heavy AI infra in Docker and keep app code local:
+
+```bash
+# Docker infra only (no frontend/backend images)
+docker compose -f docker-compose.infra.yml up --build -d
+
+# Then run app locally
+cd backend && uvicorn api.main:app --reload
+cd frontend && npm run dev
+```
+
+Windows helper:
+```bat
+scripts\start-hybrid.bat
+```
+
+macOS/Linux helper:
+```bash
+bash scripts/start-hybrid.sh
+```
+
 ### Services (Offline Mode)
 
 | Service | URL | What It Does |

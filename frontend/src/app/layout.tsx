@@ -1,29 +1,36 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import './globals.css';
-import { Navbar } from '@/components/layout/Navbar';
-import { Footer } from '@/components/layout/Footer';
-import { I18nProvider } from '@/i18n/provider';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
+import { I18nProvider } from "@/i18n/provider";
+import { ModeProvider } from "@/context/ModeContext";
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Vigilens — Disaster Video Misinformation Detection',
+  title: "Vigilens — Disaster Video Misinformation Detection",
   description:
-    'AI-powered platform to detect misinformation in disaster videos using deepfake detection, source hunting, and context analysis.',
-  keywords: ['misinformation', 'disaster', 'AI', 'deepfake', 'fact-check'],
+    "AI-powered platform to detect misinformation in disaster videos using deepfake detection, source hunting, and context analysis.",
+  keywords: ["misinformation", "disaster", "AI", "deepfake", "fact-check"],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <I18nProvider>
-          <div className="min-h-screen flex flex-col">
-            <Navbar />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
+          <ModeProvider>
+            <div className="min-h-screen flex flex-col">
+              <Navbar />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </div>
+          </ModeProvider>
         </I18nProvider>
       </body>
     </html>

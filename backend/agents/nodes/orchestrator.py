@@ -13,6 +13,7 @@ from typing import Any, Dict
 from langsmith import traceable
 
 from agents.state import AgentFinding, AgentState
+from api.job_store import update_progress
 from config.settings import get_llm, settings
 
 ORCHESTRATOR_PROMPT = """
@@ -40,6 +41,9 @@ Produce a verdict. Respond ONLY with valid JSON (no markdown):
 @traceable(name="orchestrator")
 async def orchestrator_node(state: AgentState) -> Dict:
     """Compile final verdict from all agent findings."""
+    job_id = state.get("job_id", "unknown")
+    update_progress(job_id, 0.85, "orchestrator_starting")
+
     if settings.app_mode == "demo":
         return _demo_verdict(state)
 
@@ -100,7 +104,7 @@ async def orchestrator_node(state: AgentState) -> Dict:
         else:
             raw_verdict = "unverified"
 
-    return {
+    result = {
         **state,
         "verdict": raw_verdict,
         "credibility_score": max(0, min(100, int(verdict_data.get("credibility_score", 0)))),
@@ -112,6 +116,8 @@ async def orchestrator_node(state: AgentState) -> Dict:
         "actual_location": verdict_data.get("actual_location"),
         "key_flags": verdict_data.get("key_flags", []),
     }
+    update_progress(job_id, 0.90, "orchestrator_done")
+    return result
 
 
 def _finding_to_dict(finding: Any) -> Dict:
