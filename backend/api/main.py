@@ -10,6 +10,8 @@ from .routes.analyze import router as analyze_router
 from .routes.health import router as health_router
 from .routes.status import router as status_router
 from .routes.register import router as register_router
+from .routes.live_feed import router as live_feed_router
+from ..services.social_monitor import start_watcher
 
 # Enable LangSmith tracing if configured
 if settings.langsmith_api_key:
@@ -35,3 +37,9 @@ app.include_router(health_router)
 app.include_router(analyze_router)
 app.include_router(status_router)
 app.include_router(register_router)
+app.include_router(live_feed_router)
+
+@app.on_event("startup")
+async def startup_event():
+    """Start background services."""
+    start_watcher()
