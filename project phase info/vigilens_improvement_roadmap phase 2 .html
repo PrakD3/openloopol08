@@ -1,0 +1,306 @@
+
+<h2 class="sr-only">Vigilens improvement roadmap — interactive feature cards sorted by impact and build effort</h2>
+<style>
+  *{box-sizing:border-box}
+  .root{font-family:var(--font-sans);color:var(--color-text-primary);padding:1.5rem 0}
+  .filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem}
+  .filter-btn{font-size:12px;padding:5px 12px;border-radius:20px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);cursor:pointer;transition:all .15s}
+  .filter-btn.active{background:var(--color-background-secondary);color:var(--color-text-primary);border-color:var(--color-border-primary)}
+  .improvement-list{display:flex;flex-direction:column;gap:10px}
+  .card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;transition:border-color .15s}
+  .card:hover{border-color:var(--color-border-secondary)}
+  .card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
+  .card-left{flex:1;min-width:0}
+  .card-title{font-size:14px;font-weight:500;margin:0 0 3px}
+  .card-desc{font-size:12px;color:var(--color-text-secondary);line-height:1.5;margin:0}
+  .card-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+  .tier-badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:4px;letter-spacing:0.04em;white-space:nowrap}
+  .t1{background:#EAF3DE;color:#27500A}
+  .t2{background:#E6F1FB;color:#0C447C}
+  .t3{background:#EEEDFE;color:#3C3489}
+  .score-row{display:flex;align-items:center;gap:6px;margin-top:6px}
+  .score-label{font-size:11px;color:var(--color-text-tertiary);width:50px}
+  .mini-bar-bg{width:80px;height:5px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden}
+  .mini-bar{height:5px;border-radius:3px}
+  .bar-impact{background:#185FA5}
+  .bar-effort{background:#BA7517}
+  .score-num{font-size:11px;font-weight:500;color:var(--color-text-secondary);min-width:20px}
+  .impact-tag{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:500;white-space:nowrap}
+  .imp-critical{background:#FCEBEB;color:#791F1F}
+  .imp-high{background:#E6F1FB;color:#0C447C}
+  .imp-medium{background:#FAEEDA;color:#633806}
+  .effort-tag{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:500}
+  .eff-low{background:#EAF3DE;color:#27500A}
+  .eff-med{background:#FAEEDA;color:#633806}
+  .eff-high{background:#FCEBEB;color:#791F1F}
+  .hidden{display:none}
+  .summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem}
+  .sum-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:0.75rem 1rem}
+  .sum-num{font-size:22px;font-weight:500}
+  .sum-lbl{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+  .card-why{font-size:11px;color:var(--color-text-tertiary);margin-top:8px;padding-top:8px;border-top:0.5px solid var(--color-border-tertiary);line-height:1.5}
+  .tags-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+</style>
+
+<div class="root">
+  <div class="summary-row">
+    <div class="sum-card"><div class="sum-num" style="color:#27500A">4</div><div class="sum-lbl">Ship now — hackathon impact</div></div>
+    <div class="sum-card"><div class="sum-num" style="color:#0C447C">5</div><div class="sum-lbl">Post-hackathon V1 additions</div></div>
+    <div class="sum-card"><div class="sum-num" style="color:#3C3489">3</div><div class="sum-lbl">V2 game-changers</div></div>
+  </div>
+
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="filter('all',this)">All improvements</button>
+    <button class="filter-btn" onclick="filter('t1',this)">Ship now</button>
+    <button class="filter-btn" onclick="filter('t2',this)">Post-hackathon</button>
+    <button class="filter-btn" onclick="filter('t3',this)">V2 roadmap</button>
+    <button class="filter-btn" onclick="filter('critical',this)">Critical only</button>
+  </div>
+
+  <div class="improvement-list" id="list">
+
+    <div class="card" data-tier="t1" data-impact="critical">
+      <div class="card-top">
+        <div class="card-left">
+          <div class="card-title">Temporal displacement agent</div>
+          <div class="card-desc">A dedicated 4th agent that cross-references EXIF timestamps, YouTube upload dates, and Wayback Machine archives to catch real footage used in the wrong time context — the type that defeats all deepfake detectors.</div>
+          <div class="tags-row">
+            <span class="impact-tag imp-critical">critical gap</span>
+            <span class="effort-tag eff-med">medium effort</span>
+          </div>
+          <div class="card-why">Why: 51% of all disaster misinfo is false context (Turkey-Syria earthquake study). Your deepfake detector can't catch a real 2015 flood reposted as 2025. This agent is the only one that can.</div>
+        </div>
+        <div class="card-right">
+          <span class="tier-badge t1">Ship now</span>
+          <div class="score-row"><div class="score-label">Impact</div><div class="mini-bar-bg"><div class="mini-bar bar-impact" style="width:95%"></div></div><div class="score-num">9.5</div></div>
+          <div class="score-row"><div class="score-label">Effort</div><div class="mini-bar-bg"><div class="mini-bar bar-effort" style="width:50%"></div></div><div class="score-num">5</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-tier="t1" data-impact="critical">
+      <div class="card-top">
+        <div class="card-left">
+          <div class="card-title">Shareable verdict card with permanent URL</div>
+          <div class="card-desc">Every analysis generates a public link like vigilens.app/v/abc123 with an embeddable verdict card. Journalists and NGOs share these in articles and social posts rather than screenshots.</div>
+          <div class="tags-row">
+            <span class="impact-tag imp-critical">viral growth engine</span>
+            <span class="effort-tag eff-low">low effort</span>
+          </div>
+          <div class="card-why">Why: This single feature turns every analysis into a distribution event. It's how the platform grows organically — every shared verdict card is free marketing and utility proof.</div>
+        </div>
+        <div class="card-right">
+          <span class="tier-badge t1">Ship now</span>
+          <div class="score-row"><div class="score-label">Impact</div><div class="mini-bar-bg"><div class="mini-bar bar-impact" style="width:92%"></div></div><div class="score-num">9.2</div></div>
+          <div class="score-row"><div class="score-label">Effort</div><div class="mini-bar-bg"><div class="mini-bar bar-effort" style="width:25%"></div></div><div class="score-num">2.5</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-tier="t1" data-impact="high">
+      <div class="card-top">
+        <div class="card-left">
+          <div class="card-title">SSE streaming for live agent progress</div>
+          <div class="card-desc">Replace polling (GET /status/{job_id}) with Server-Sent Events. The UI receives each agent's result the instant it completes, creating a "watching the investigation unfold" experience that's dramatically more compelling.</div>
+          <div class="tags-row">
+            <span class="impact-tag imp-high">demo killer feature</span>
+            <span class="effort-tag eff-low">low effort</span>
+          </div>
+          <div class="card-why">Why: For hackathon demos and investor pitches, the live agent stream is the most visually convincing part. Polling with spinners feels like a loading screen. SSE makes agents feel alive.</div>
+        </div>
+        <div class="card-right">
+          <span class="tier-badge t1">Ship now</span>
+          <div class="score-row"><div class="score-label">Impact</div><div class="mini-bar-bg"><div class="mini-bar bar-impact" style="width:82%"></div></div><div class="score-num">8.2</div></div>
+          <div class="score-row"><div class="score-label">Effort</div><div class="mini-bar-bg"><div class="mini-bar bar-effort" style="width:30%"></div></div><div class="score-num">3</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-tier="t1" data-impact="high">
+      <div class="card-top">
+        <div class="card-left">
+          <div class="card-title">Hash-only storage (privacy architecture)</div>
+          <div class="card-desc">Never store raw video — store only perceptual hashes and metadata fingerprints. Two benefits: instant verdicts on previously analyzed videos (network effect), and the trust layer that makes NGOs and journalists comfortable using the platform.</div>
+          <div class="tags-row">
+            <span class="impact-tag imp-high">trust + network effect</span>
+            <span class="effort-tag eff-low">low effort</span>
+          </div>
+          <div class="card-why">Why: Disaster footage often contains sensitive content. Any organization that handles humanitarian data won't use a platform that stores videos. Hash-only also enables a free "instant match" lookup for repeat videos.</div>
+        </div>
+        <div class="card-right">
+          <span class="tier-badge t1">Ship now</span>
+          <div class="score-row"><div class="score-label">Impact</div><div class="mini-bar-bg"><div class="mini-bar bar-impact" style="width:78%"></div></div><div class="score-num">7.8</div></div>
+          <div class="score-row"><div class="score-label">Effort</div><div class="mini-bar-bg"><div class="mini-bar bar-effort" style="width:20%"></div></div><div class="score-num">2</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-tier="t2" data-impact="critical">
+      <div class="card-top">
+        <div class="card-left">
+          <div class="card-title">Audio deepfake detection</div>
+          <div class="card-desc">Route Whisper's audio features + transcript to a voice authenticity model. ElevenLabs-style cloned voices on fake news clips are the fastest-growing misinfo vector. You already have the audio — just need a classifier on top.</div>
+          <div class="tags-row">
+            <span class="impact-tag imp-critical">fastest growing threat</span>
+            <span class="effort-tag eff-med">medium effort</span>
+          </div>
+          <div class="card-why">Why: MarketsandMarkets reports that AI audio/voice detection is the fastest-growing segment in the entire AI detector market (2025-2030). Adding it now makes Vigilens future-proof and differentiates from every competitor.</div>
+        </div>
+        <div class="card-right">
+          <span class="tier-badge t2">Post-hackathon</span>
+          <div class="score-row"><div class="score-label">Impact</div><div class="mini-bar-bg"><div class="mini-bar bar-impact" style="width:88%"></div></div><div class="score-num">8.8</div></div>
+          <div class="score-row"><div class="score-label">Effort</div><div class="mini-bar-bg"><div class="mini-bar bar-effort" style="width:55%"></div></div><div class="score-num">5.5</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-tier="t2" data-impact="high">
+      <div class="card-top">
+        <div class="card-left">
+          <div class="card-title">Newsroom API + webhook integration</div>
+          <div class="card-desc">A documented REST API and webhook system so newsrooms can integrate Vigilens into their CMS workflows. When a journalist pastes a URL into their draft, Vigilens verdict appears inline. Target: AFP, Reuters tools, Indian news agencies.</div>
+          <div class="tags-row">
+            <span class="impact-tag imp-high">B2B revenue path</span>
+            <span class="effort-tag eff-med">medium effort</span>
+          </div>
+          <div class="card-why">Why: This is the commercial monetization path. Enterprise newsroom API licenses are the revenue model that sustains the free NGO tier. AFP already has Vera.ai — positioning Vigilens as the disaster-specialized alternative is a clear wedge.</div>
+        </div>
+        <div class="card-right">
+          <span class="tier-badge t2">Post-hackathon</span>
+          <div class="score-row"><div class="score-label">Impact</div><div class="mini-bar-bg"><div class="mini-bar bar-impact" style="width:85%"></div></div><div class="score-num">8.5</div></div>
+          <div class="score-row"><div class="score-label">Effort</div><div class="mini-bar-bg"><div class="mini-bar bar-effort" style="width:45%"></div></div><div class="score-num">4.5</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-tier="t2" data-impact="high">
+      <div class="card-top">
+        <div class="card-left">
+          <div class="card-title">Reputation-weighted community voting</div>
+          <div class="card-desc">Simple karma layer on the community feed: verified journalists and NGO accounts carry 10× vote weight. Anonymous votes are still counted but down-weighted. Protects verdicts from coordinated manipulation during viral events.</div>
+          <div class="tags-row">
+            <span class="impact-tag imp-high">sybil resistance</span>
+            <span class="effort-tag eff-med">medium effort</span>
+          </div>
+          <div class="card-why">Why: Coordinated misinfo campaigns specifically target fact-checking community features during disasters. Without reputation weighting, a community vote becomes a bot farm target. Supabase is already in your stack — just needs a role column.</div>
+        </div>
+        <div class="card-right">
+          <span class="tier-badge t2">Post-hackathon</span>
+          <div class="score-row"><div class="score-label">Impact</div><div class="mini-bar-bg"><div class="mini-bar bar-impact" style="width:75%"></div></div><div class="score-num">7.5</div></div>
+          <div class="score-row"><div class="score-label">Effort</div><div class="mini-bar-bg"><div class="mini-bar bar-effort" style="width:40%"></div></div><div class="score-num">4</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-tier="t2" data-impact="high">
+      <div class="card-top">
+        <div class="card-left">
+          <div class="card-title">PWA / mobile-first experience</div>
+          <div class="card-desc">Convert the frontend into a Progressive Web App with "Add to Home Screen" support. On-ground journalists and aid workers verify footage on phones, not laptops. Android share-sheet integration so users can share videos directly from WhatsApp or browser into Vigilens.</div>
+          <div class="tags-row">
+            <span class="impact-tag imp-high">field usability</span>
+            <span class="effort-tag eff-low">low effort</span>
+          </div>
+          <div class="card-why">Why: Next.js makes PWA conversion trivial with next-pwa. The target user in India, Africa, and Southeast Asia is primarily mobile. Desktop-only severely limits real-world adoption in the exact markets that need this most.</div>
+        </div>
+        <div class="card-right">
+          <span class="tier-badge t2">Post-hackathon</span>
+          <div class="score-row"><div class="score-label">Impact</div><div class="mini-bar-bg"><div class="mini-bar bar-impact" style="width:72%"></div></div><div class="score-num">7.2</div></div>
+          <div class="score-row"><div class="score-label">Effort</div><div class="mini-bar-bg"><div class="mini-bar bar-effort" style="width:22%"></div></div><div class="score-num">2.2</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-tier="t2" data-impact="medium">
+      <div class="card-top">
+        <div class="card-left">
+          <div class="card-title">Perceptual hash lookup database</div>
+          <div class="card-desc">Every analyzed video's perceptual hash gets stored. Future submissions are instantly matched against this database — giving instant verdicts for viral content and building a growing "disaster footage immunity" index over time.</div>
+          <div class="tags-row">
+            <span class="impact-tag imp-medium">compounding network effect</span>
+            <span class="effort-tag eff-low">low effort</span>
+          </div>
+          <div class="card-why">Why: Viral misinfo videos get submitted hundreds of times. After the first analysis, every subsequent submission should return in milliseconds, not 60 seconds. This is also the foundation for federating verdicts across multiple Vigilens nodes.</div>
+        </div>
+        <div class="card-right">
+          <span class="tier-badge t2">Post-hackathon</span>
+          <div class="score-row"><div class="score-label">Impact</div><div class="mini-bar-bg"><div class="mini-bar bar-impact" style="width:68%"></div></div><div class="score-num">6.8</div></div>
+          <div class="score-row"><div class="score-label">Effort</div><div class="mini-bar-bg"><div class="mini-bar bar-effort" style="width:18%"></div></div><div class="score-num">1.8</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-tier="t3" data-impact="critical">
+      <div class="card-top">
+        <div class="card-left">
+          <div class="card-title">WhatsApp bot integration</div>
+          <div class="card-desc">A dedicated WhatsApp number that users forward suspicious videos to, receiving a verdict reply with the shareable card link. In India, WhatsApp is the primary misinfo vector — not Twitter. This is where the real volume lives.</div>
+          <div class="tags-row">
+            <span class="impact-tag imp-critical">India market unlock</span>
+            <span class="effort-tag eff-high">high effort</span>
+          </div>
+          <div class="card-why">Why: WhatsApp Business API + Twilio makes this technically feasible, but requires production backend stability and WhatsApp partner approval. The reach payoff is enormous — India's 500M WhatsApp users forwarding disaster clips is the exact target population.</div>
+        </div>
+        <div class="card-right">
+          <span class="tier-badge t3">V2 roadmap</span>
+          <div class="score-row"><div class="score-label">Impact</div><div class="mini-bar-bg"><div class="mini-bar bar-impact" style="width:93%"></div></div><div class="score-num">9.3</div></div>
+          <div class="score-row"><div class="score-label">Effort</div><div class="mini-bar-bg"><div class="mini-bar bar-effort" style="width:80%"></div></div><div class="score-num">8</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-tier="t3" data-impact="high">
+      <div class="card-top">
+        <div class="card-left">
+          <div class="card-title">Browser extension for inline verification</div>
+          <div class="card-desc">A Chrome/Firefox extension that adds a "Verify with Vigilens" button directly on Twitter/X, Facebook, and YouTube video embeds. One click — no URL copying, no tab switching. Verdict appears as a tooltip overlay.</div>
+          <div class="tags-row">
+            <span class="impact-tag imp-high">zero-friction adoption</span>
+            <span class="effort-tag eff-high">high effort</span>
+          </div>
+          <div class="card-why">Why: The single biggest barrier to fact-checking is switching context. If the verify button is already on the page, usage multiplies. InVid has proven this model — but they don't do video-native multi-agent analysis.</div>
+        </div>
+        <div class="card-right">
+          <span class="tier-badge t3">V2 roadmap</span>
+          <div class="score-row"><div class="score-label">Impact</div><div class="mini-bar-bg"><div class="mini-bar bar-impact" style="width:86%"></div></div><div class="score-num">8.6</div></div>
+          <div class="score-row"><div class="score-label">Effort</div><div class="mini-bar-bg"><div class="mini-bar bar-effort" style="width:70%"></div></div><div class="score-num">7</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-tier="t3" data-impact="high">
+      <div class="card-top">
+        <div class="card-left">
+          <div class="card-title">GIS / satellite location validation</div>
+          <div class="card-desc">Cross-reference the claimed location in video metadata or captions with satellite imagery of the actual event. Flags cases where "this Kerala flood footage shows terrain inconsistent with Kerala geography" — a level of analysis no current tool attempts.</div>
+          <div class="tags-row">
+            <span class="impact-tag imp-high">unique differentiator</span>
+            <span class="effort-tag eff-high">high effort</span>
+          </div>
+          <div class="card-why">Why: This is the category-defining feature that no competitor has even attempted. It requires Sentinel/Landsat satellite APIs + a vision model for terrain matching, but the headline "AI verifies disaster location against satellite data" is a PR and grant magnet.</div>
+        </div>
+        <div class="card-right">
+          <span class="tier-badge t3">V2 roadmap</span>
+          <div class="score-row"><div class="score-label">Impact</div><div class="mini-bar-bg"><div class="mini-bar bar-impact" style="width:80%"></div></div><div class="score-num">8.0</div></div>
+          <div class="score-row"><div class="score-label">Effort</div><div class="mini-bar-bg"><div class="mini-bar bar-effort" style="width:88%"></div></div><div class="score-num">8.8</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function filter(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.card').forEach(card => {
+    if (type === 'all') { card.classList.remove('hidden'); return; }
+    if (type === 'critical') {
+      card.classList.toggle('hidden', card.dataset.impact !== 'critical');
+    } else {
+      card.classList.toggle('hidden', card.dataset.tier !== type);
+    }
+  });
+}
+</script>
