@@ -41,42 +41,46 @@ export default function HomePage() {
             {t('home.subtitle')}
           </p>
 
-          {/* Video Submission */}
-          <div className="max-w-2xl mx-auto mt-8">
-            {isDemo ? (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">Select a demo video to analyse:</p>
-                <div className="grid gap-2">
-                  {DEMO_VIDEOS.map((video) => (
-                    <button
-                      key={video.id}
-                      onClick={() => setSelectedDemo(video.url)}
-                      className={`text-left p-3 rounded-lg border transition-all text-sm ${
-                        selectedDemo === video.url
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      {video.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Input
+          {/* Premium Platform Search Bar */}
+          <div className="max-w-3xl mx-auto mt-12 relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+            
+            <div className="relative bg-black/40 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-2xl flex flex-col md:flex-row gap-2">
+              <div className="flex-1 flex items-center px-4 gap-3">
+                <Globe className="text-white/30 h-5 w-5" />
+                <input
                   type="url"
-                  placeholder={t('home.submitPlaceholder')}
+                  placeholder="Paste link from YouTube, 𝕏, Instagram, or Reddit..."
                   value={videoUrl}
                   onChange={(e) => setVideoUrl(e.target.value)}
-                  className="flex-1"
+                  className="w-full bg-transparent border-none text-white focus:ring-0 placeholder:text-white/20 text-sm py-3"
                 />
               </div>
-            )}
-            <Button onClick={handleAnalyse} size="lg" className="w-full mt-3">
-              {t('home.analyseButton')}
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+              
+              <button 
+                onClick={handleAnalyse}
+                className="bg-white text-black hover:bg-white/90 font-bold px-8 py-3 rounded-xl transition-all flex items-center justify-center gap-2 group/btn"
+              >
+                Analyse Now
+                <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
+              </button>
+            </div>
+
+            {/* Platform Badges */}
+            <div className="flex justify-center gap-6 mt-6 opacity-40 hover:opacity-100 transition-opacity">
+              <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest">
+                <Youtube size={12} className="text-red-500" /> YouTube
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest">
+                <Twitter size={12} className="text-blue-400" /> 𝕏 (Twitter)
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest">
+                <Instagram size={12} className="text-pink-500" /> Instagram
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest">
+                <Globe size={12} className="text-orange-500" /> Reddit
+              </span>
+            </div>
           </div>
         </div>
       </section>

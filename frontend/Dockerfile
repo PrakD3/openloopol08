@@ -1,28 +1,23 @@
-FROM node:22-alpine AS builder
+FROM node:18-alpine
 
 WORKDIR /app
 
+# Install dependencies
 COPY package*.json ./
 RUN npm install
 
+# Copy source code
 COPY . .
 
-ENV NEXT_PUBLIC_INFERENCE_MODE=online
-ENV NEXT_PUBLIC_APP_MODE=demo
-ENV NEXT_PUBLIC_BACKEND_URL=http://backend:8000
+# Build Next.js app
+# Note: Ensure NEXT_PUBLIC_BACKEND_URL is set during build or use client-side env
+ARG NEXT_PUBLIC_BACKEND_URL
+ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
 
 RUN npm run build
 
-FROM node:22-alpine AS runner
-
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-
+# Expose Next.js port
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+# Start application
+CMD ["npm", "start"]

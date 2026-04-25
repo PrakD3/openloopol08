@@ -9,6 +9,7 @@ const platforms = [
   { id: 'instagram', icon: Instagram, color: 'from-purple-600 to-pink-500', name: 'Instagram Reels' },
   { id: 'twitter', icon: Twitter, color: 'from-blue-400 to-blue-600', name: '𝕏 (Twitter)' },
   { id: 'youtube', icon: Youtube, color: 'from-red-600 to-red-700', name: 'YouTube Shorts' },
+  { id: 'reddit', icon: Globe, color: 'from-orange-600 to-orange-700', name: 'Reddit' },
   { id: 'tiktok', icon: Music2, color: 'from-black to-slate-800', name: 'TikTok' },
 ];
 
