@@ -44,3 +44,9 @@ class AgentState(TypedDict):
     actual_location: Optional[str]
     key_flags: List[str]
     error: Optional[str]
+
+    # Notification result
+    notification_result: Optional[dict]  # Output from notification_node
+
+    # War/conflict flag (from context analyser)
+    is_war_or_conflict: Optional[bool]

@@ -36,6 +36,19 @@ class Settings(BaseSettings):
     google_vision_api_key: str = ""
     tineye_api_key: str = ""
     youtube_api_key: str = ""
+    x_bearer_token: str = ""
+    bing_search_api_key: str = ""
+
+    # Context analyser
+    claimbuster_api_key: str = ""
+
+    # Notifications
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_number: str = ""
+    notification_radius_km: float = 10.0
+    notification_confidence_threshold: int = 85
+    notification_enabled: bool = True
 
     # Server
     host: str = "0.0.0.0"

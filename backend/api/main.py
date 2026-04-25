@@ -9,6 +9,7 @@ from config.settings import settings
 from api.routes.analyze import router as analyze_router
 from api.routes.health import router as health_router
 from api.routes.status import router as status_router
+from api.routes.register import router as register_router
 
 # Enable LangSmith tracing if configured
 if settings.langsmith_api_key:
@@ -33,3 +34,4 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(analyze_router)
 app.include_router(status_router)
+app.include_router(register_router)

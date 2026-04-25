@@ -1,231 +1,365 @@
 """
-Source Hunter Agent
+Source Hunter Agent Node
+=========================
+Finds the earliest known source of a video on the internet.
+Detects recirculation: same video shared with different location/date claims.
 
-Online mode:
-  1. Extract keyframes and compute pHash
-  2. POST to Google Vision API for web entity detection
-  3. POST to TinEye API for reverse image search
-  4. Extract EXIF metadata via exiftool
-  5. If YouTube URL: fetch video metadata via YouTube Data API
-
-Offline mode:
-  1. pHash (always available)
-  2. EXIF (always available)
-  Steps 3-5 skipped
+APIs used (all free tier):
+  - Google Vision Web Detection (1000 req/month free)
+  - TinEye (150 req/month free)
+  - Bing Visual Search (free via Azure trial)
+  - Wayback Machine (no key, always free)
+  - yt-dlp (no key, always free — works on YouTube/Instagram/Twitter/TikTok)
+  - ExifTool via subprocess (local, always free)
+  - imagehash library (local, always free)
 """
 
 import asyncio
+import base64
 import json
 import subprocess
-import time
-from typing import Any, Dict, List, Optional
-from urllib.parse import parse_qs, urlparse
+import tempfile
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+from urllib.parse import urlparse
 
 import httpx
+import imagehash
+from PIL import Image
 from langsmith import traceable
 
 from config.settings import settings
 from agents.state import AgentFinding, AgentState
+from agents.tools.api_integrations import extract_platform_metadata
 
 
-@traceable(name="source_hunter")
-async def source_hunter_node(state: AgentState) -> AgentFinding:
-    """Route to online or offline source hunting based on INFERENCE_MODE."""
-    start = time.time()
+# ── Google Vision Web Detection ───────────────────────────────────────────────
 
-    if settings.app_mode == "demo":
-        result = _demo_result()
-    elif settings.inference_mode == "offline":
-        result = await _offline_source_hunt(state)
-    else:
-        result = await _online_source_hunt(state)
+GOOGLE_VISION_URL = "https://vision.googleapis.com/v1/images:annotate"
 
-    result.duration_ms = int((time.time() - start) * 1000)
-    return result
-
-
-def _demo_result() -> AgentFinding:
-    return AgentFinding(
-        agent_id="source-hunter",
-        agent_name="Source Hunter",
-        status="done",
-        score=85.0,
-        findings=[
-            "Earliest instance: verified news source",
-            "No prior uploads found with different context",
-            "GPS metadata present and consistent",
-        ],
-        detail="Demo mode: source hunt simulated.",
-    )
-
-
-async def _online_source_hunt(state: AgentState) -> AgentFinding:
-    """Full online source hunting with APIs."""
-    keyframes: List[str] = state.get("keyframes", [])
-    video_url: Optional[str] = state.get("video_url")
-    findings: List[str] = []
-    source_score = 50.0
-
-    # 1. EXIF metadata (always available)
-    exif_data = _extract_exif(state.get("video_path"))
-    if exif_data:
-        findings.append(f"EXIF: {exif_data}")
-
-    # 2. Google Vision reverse search
-    if settings.google_vision_api_key and keyframes:
-        vision_results = await _google_vision_search(keyframes[:3])
-        findings.extend(vision_results)
-
-    # 3. TinEye search
-    if settings.tineye_api_key and keyframes:
-        tineye_results = await _tineye_search(keyframes[0])
-        findings.extend(tineye_results)
-
-    # 4. YouTube metadata
-    if video_url and "youtube.com" in video_url and settings.youtube_api_key:
-        yt_results = await _youtube_metadata(video_url)
-        findings.extend(yt_results)
-        source_score = 80.0
-
-    return AgentFinding(
-        agent_id="source-hunter",
-        agent_name="Source Hunter",
-        status="done",
-        score=round(source_score, 1),
-        findings=findings or ["No source data found"],
-        detail=f"Analysed {len(keyframes)} keyframes via online APIs",
-    )
+async def _google_vision_search(frame_path: str) -> dict:
+    """
+    Sends a keyframe to Google Vision Web Detection.
+    Returns dict with: web_entities, full_matches, partial_matches, pages
+    Returns {} on failure.
+    """
+    if not settings.google_vision_api_key:
+        return {}
+    try:
+        with open(frame_path, "rb") as f:
+            image_b64 = base64.b64encode(f.read()).decode("utf-8")
+        payload = {
+            "requests": [{
+                "image": {"content": image_b64},
+                "features": [{"type": "WEB_DETECTION", "maxResults": 10}],
+            }]
+        }
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                GOOGLE_VISION_URL,
+                params={"key": settings.google_vision_api_key},
+                json=payload,
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            web = data.get("responses", [{}])[0].get("webDetection", {})
+            return {
+                "full_matches": web.get("fullMatchingImages", []),
+                "partial_matches": web.get("partialMatchingImages", []),
+                "pages": web.get("pagesWithMatchingImages", []),
+                "entities": web.get("webEntities", []),
+            }
+    except Exception as e:
+        print(f"[SourceHunter/GoogleVision] Failed: {e}")
+        return {}
 
 
-async def _offline_source_hunt(state: AgentState) -> AgentFinding:
-    """Offline source hunting — pHash and EXIF only."""
-    keyframes: List[str] = state.get("keyframes", [])
-    findings: List[str] = ["Offline mode: API-based reverse search skipped"]
+# ── TinEye ────────────────────────────────────────────────────────────────────
 
-    exif_data = _extract_exif(state.get("video_path"))
-    if exif_data:
-        findings.append(f"EXIF: {exif_data}")
+TINEYE_URL = "https://api.tineye.com/rest/search/"
 
-    if keyframes:
-        findings.append(
-            f"pHash computed for {len(keyframes)} keyframes (no API comparison available)"
-        )
+async def _tineye_search(frame_path: str) -> dict:
+    """
+    Reverse image search via TinEye.
+    Returns list of matches with first_seen dates.
+    Returns {} on failure or if no API key.
+    """
+    if not settings.tineye_api_key:
+        return {}
+    try:
+        with open(frame_path, "rb") as f:
+            files = {"image": (Path(frame_path).name, f, "image/jpeg")}
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                TINEYE_URL,
+                params={"api_key": settings.tineye_api_key},
+                files=files,
+                timeout=15.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            matches = data.get("results", {}).get("matches", [])
+            return {
+                "match_count": len(matches),
+                "matches": [
+                    {
+                        "domain": m.get("domain"),
+                        "first_seen": m.get("image", {}).get("first_seen_date"),
+                        "last_seen": m.get("image", {}).get("last_seen_date"),
+                        "url": m.get("backlinks", [{}])[0].get("url") if m.get("backlinks") else None,
+                    }
+                    for m in matches[:5]  # Top 5 only
+                ],
+            }
+    except Exception as e:
+        print(f"[SourceHunter/TinEye] Failed: {e}")
+        return {}
 
-    return AgentFinding(
-        agent_id="source-hunter",
-        agent_name="Source Hunter",
-        status="done",
-        score=30.0,
-        findings=findings,
-        detail="Offline mode: EXIF + pHash only. API search unavailable.",
-    )
+
+# ── Bing Visual Search ────────────────────────────────────────────────────────
+
+BING_VISUAL_URL = "https://api.bing.microsoft.com/v7.0/images/visualsearch"
+
+async def _bing_visual_search(frame_path: str) -> dict:
+    """Bing Visual Search fallback. Free tier via Azure Cognitive Services."""
+    if not settings.bing_search_api_key:
+        return {}
+    try:
+        with open(frame_path, "rb") as f:
+            files = {"image": (Path(frame_path).name, f, "image/jpeg")}
+        headers = {"Ocp-Apim-Subscription-Key": settings.bing_search_api_key}
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                BING_VISUAL_URL,
+                headers=headers,
+                files=files,
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            # Extract image matches from Bing response
+            tags = data.get("tags", [])
+            pages = []
+            for tag in tags:
+                for action in tag.get("actions", []):
+                    if action.get("actionType") == "PagesIncluding":
+                        for item in action.get("data", {}).get("value", []):
+                            pages.append({
+                                "url": item.get("contentUrl"),
+                                "name": item.get("name"),
+                                "date": item.get("datePublished"),
+                            })
+            return {"pages": pages[:10]}
+    except Exception as e:
+        print(f"[SourceHunter/Bing] Failed: {e}")
+        return {}
 
 
-def _extract_exif(video_path: Optional[str]) -> Optional[str]:
-    """Extract EXIF metadata using exiftool."""
-    if not video_path:
-        return None
+# ── Wayback Machine ───────────────────────────────────────────────────────────
+
+WAYBACK_URL = "http://archive.org/wayback/available"
+
+async def _wayback_check(url: str) -> dict:
+    """
+    Check if a URL has been archived by the Wayback Machine.
+    No API key needed. Use to verify claimed upload dates.
+    """
+    if not url:
+        return {}
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                WAYBACK_URL,
+                params={"url": url},
+                timeout=8.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            snapshot = data.get("archived_snapshots", {}).get("closest", {})
+            return {
+                "available": snapshot.get("available", False),
+                "timestamp": snapshot.get("timestamp"),  # Format: YYYYMMDDHHmmss
+                "url": snapshot.get("url"),
+            }
+    except Exception as e:
+        print(f"[SourceHunter/Wayback] Failed: {e}")
+        return {}
+
+
+# ── EXIF + GPS Metadata ───────────────────────────────────────────────────────
+
+def _extract_exif(video_path: str) -> dict:
+    """
+    Run ExifTool on the video file.
+    Extracts: GPS coords, creation date, encoding software, camera model.
+    ExifTool must be installed: sudo apt install exiftool (Linux) or brew install exiftool (Mac)
+    """
+    if not video_path or not Path(video_path).exists():
+        return {}
     try:
         result = subprocess.run(
-            ["exiftool", "-json", "-GPS*", "-CreateDate", "-EncodingSettings", video_path],
+            ["exiftool", "-json", "-GPS*", "-Create*", "-Encode*", "-Software", video_path],
             capture_output=True,
             text=True,
             timeout=10,
         )
-        if result.returncode == 0:
-            data = json.loads(result.stdout)
-            if data:
-                return str(data[0])
+        if result.returncode != 0:
+            return {}
+        data = json.loads(result.stdout)
+        if not data:
+            return {}
+        exif = data[0]
+        return {
+            "gps_lat": exif.get("GPSLatitude"),
+            "gps_lon": exif.get("GPSLongitude"),
+            "create_date": exif.get("CreateDate") or exif.get("TrackCreateDate"),
+            "encoding_software": exif.get("EncodingSoftware") or exif.get("Software"),
+            "suspicious_software": _is_ai_software(exif.get("EncodingSoftware", "")),
+        }
+    except Exception as e:
+        print(f"[SourceHunter/EXIF] Failed: {e}")
+        return {}
+
+
+def _is_ai_software(software: str) -> bool:
+    """Check if encoding software name suggests AI generation."""
+    if not software:
+        return False
+    ai_tools = {"sora", "runway", "kling", "pika", "suno", "stable diffusion",
+                 "midjourney", "dall-e", "adobe firefly", "veo"}
+    return any(tool in software.lower() for tool in ai_tools)
+
+
+# ── Perceptual Hash ───────────────────────────────────────────────────────────
+
+def _compute_phash(frame_path: str) -> Optional[str]:
+    """Compute perceptual hash of a frame for near-duplicate detection."""
+    try:
+        img = Image.open(frame_path)
+        return str(imagehash.phash(img))
     except Exception:
-        pass
-    return None
+        return None
 
 
-async def _google_vision_search(keyframes: List[str]) -> List[str]:
-    """Reverse image search via Google Vision API."""
-    findings: List[str] = []
-    import base64
+# ── Earliest Date Helper ──────────────────────────────────────────────────────
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        for frame_path in keyframes:
-            try:
-                with open(frame_path, "rb") as f:
-                    img_b64 = base64.b64encode(f.read()).decode()
-
-                response = await client.post(
-                    f"https://vision.googleapis.com/v1/images:annotate?key={settings.google_vision_api_key}",
-                    json={
-                        "requests": [
-                            {
-                                "image": {"content": img_b64},
-                                "features": [{"type": "WEB_DETECTION"}],
-                            }
-                        ]
-                    },
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    web = data.get("responses", [{}])[0].get("webDetection", {})
-                    entities = web.get("webEntities", [])
-                    matches = web.get("fullMatchingImages", [])
-                    if entities:
-                        top = entities[0].get("description", "Unknown")
-                        findings.append(f"Google Vision: top entity '{top}'")
-                    if matches:
-                        findings.append(f"Google Vision: {len(matches)} matching images found")
-            except Exception as exc:
-                findings.append(f"Google Vision error: {exc}")
-
-    return findings
+def _find_earliest_date(results: dict) -> Optional[str]:
+    """Extract the earliest known appearance date from all search results."""
+    dates = []
+    for match in results.get("tineye", {}).get("matches", []):
+        if match.get("first_seen"):
+            dates.append(match["first_seen"])
+    wayback = results.get("wayback", {})
+    if wayback.get("timestamp"):
+        ts = wayback["timestamp"]
+        try:
+            dt = datetime.strptime(ts, "%Y%m%d%H%M%S")
+            dates.append(dt.isoformat())
+        except Exception:
+            pass
+    platform_meta = results.get("platform_metadata", {})
+    if platform_meta.get("upload_date"):
+        dates.append(platform_meta["upload_date"])
+    return min(dates) if dates else None
 
 
-async def _tineye_search(frame_path: str) -> List[str]:
-    """Reverse search via TinEye API."""
-    findings: List[str] = []
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            with open(frame_path, "rb") as f:
-                response = await client.post(
-                    f"https://api.tineye.com/rest/search/?api_key={settings.tineye_api_key}",
-                    files={"image": f},
-                )
-            if response.status_code == 200:
-                data = response.json()
-                matches = data.get("results", {}).get("matches", [])
-                if matches:
-                    first_seen = matches[0].get("image_url", "")
-                    findings.append(f"TinEye: {len(matches)} matches. Earliest: {first_seen}")
-                else:
-                    findings.append("TinEye: No matching images found")
-    except Exception as exc:
-        findings.append(f"TinEye error: {exc}")
-    return findings
+# ── Main Entry Point ──────────────────────────────────────────────────────────
 
+@traceable(name="source_hunter")
+async def source_hunter_node(state: AgentState) -> AgentFinding:
+    """
+    LangGraph node. Runs all source-hunting methods concurrently.
+    Uses the best frame (frame 0 by default, the clearest keyframe) for image search.
+    All API calls are independent — failure of one does not block others.
+    """
+    keyframes = state.get("keyframes", [])
+    video_url = state.get("video_url")
+    video_path = state.get("video_path")
 
-async def _youtube_metadata(video_url: str) -> List[str]:
-    """Fetch YouTube video metadata."""
-    findings: List[str] = []
-    try:
-        parsed = urlparse(video_url)
-        vid_id = parse_qs(parsed.query).get("v", [None])[0]
-        if not vid_id:
-            return findings
+    if not keyframes:
+        return AgentFinding(
+            agent_id="source_hunter",
+            status="error",
+            score=None,
+            findings=["No keyframes to search"],
+            detail=None,
+        )
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                "https://www.googleapis.com/youtube/v3/videos",
-                params={
-                    "id": vid_id,
-                    "key": settings.youtube_api_key,
-                    "part": "snippet,recordingDetails",
-                },
-            )
-            if response.status_code == 200:
-                items = response.json().get("items", [])
-                if items:
-                    snippet = items[0].get("snippet", {})
-                    findings.append(f"YouTube channel: {snippet.get('channelTitle', 'Unknown')}")
-                    findings.append(f"Published: {snippet.get('publishedAt', 'Unknown')}")
-    except Exception as exc:
-        findings.append(f"YouTube API error: {exc}")
-    return findings
+    # Use the first (clearest) keyframe for image searches
+    best_frame = keyframes[0]
+
+    # Run all searches concurrently
+    google_task = _google_vision_search(best_frame)
+    tineye_task = _tineye_search(best_frame)
+    bing_task = _bing_visual_search(best_frame)
+    wayback_task = _wayback_check(video_url or "")
+    platform_task = extract_platform_metadata(video_url or "")
+
+    google_result, tineye_result, bing_result, wayback_result, platform_meta = (
+        await asyncio.gather(
+            google_task, tineye_task, bing_task, wayback_task, platform_task,
+            return_exceptions=False,
+        )
+    )
+
+    # EXIF is sync — run after async calls
+    exif_result = _extract_exif(video_path or "")
+
+    # Compute perceptual hashes for all frames
+    phashes = [_compute_phash(f) for f in keyframes]
+
+    # Aggregate results
+    all_results = {
+        "google_vision": google_result,
+        "tineye": tineye_result,
+        "bing": bing_result,
+        "wayback": wayback_result,
+        "exif": exif_result,
+        "platform_metadata": platform_meta,
+        "phashes": phashes,
+    }
+
+    # Derive conclusions
+    earliest_date = _find_earliest_date(all_results)
+    has_gps = bool(exif_result.get("gps_lat"))
+    suspicious_software = exif_result.get("suspicious_software", False)
+    tineye_count = tineye_result.get("match_count", 0)
+    google_pages = len(google_result.get("pages", []))
+    reuse_detected = tineye_count > 1 or google_pages > 3
+
+    # Score: 0 = definitely recirculated/fake source, 100 = definitely original
+    # We invert this: high source_score = suspicious/recirculated
+    source_suspicion = 0
+    if reuse_detected:
+        source_suspicion += 40
+    if suspicious_software:
+        source_suspicion += 35
+    if tineye_count > 5:
+        source_suspicion += 20
+    source_suspicion = min(source_suspicion, 100)
+
+    findings = []
+    if earliest_date:
+        findings.append(f"Earliest known appearance: {earliest_date}")
+    if reuse_detected:
+        findings.append(f"Video found on {tineye_count} other sites — possible recirculation")
+    if has_gps:
+        findings.append(f"GPS metadata found: {exif_result['gps_lat']}, {exif_result['gps_lon']}")
+    else:
+        findings.append("No GPS metadata in video file")
+    if suspicious_software:
+        findings.append(f"⚠️ Encoding software suggests AI generation: {exif_result.get('encoding_software')}")
+    if platform_meta.get("channel"):
+        findings.append(f"Platform: {platform_meta.get('platform')} | Channel: {platform_meta.get('channel')}")
+    if not findings:
+        findings.append("No strong source matches found — origin unclear")
+
+    return AgentFinding(
+        agent_id="source_hunter",
+        status="done",
+        score=source_suspicion,
+        findings=findings,
+        detail=json.dumps(all_results, default=str),
+    )
