@@ -15,7 +15,7 @@ const badgeVariants = cva(
         warning: 'bg-warning text-warning-foreground',
         info: 'bg-info text-info-foreground',
         outline: 'bg-background text-foreground',
-        real: 'bg-accent text-accent-foreground',
+        real: 'bg-clash-3 text-white',
         misleading: 'bg-destructive text-destructive-foreground',
         'ai-generated': 'bg-primary text-primary-foreground',
         unverified: 'bg-muted text-muted-foreground',

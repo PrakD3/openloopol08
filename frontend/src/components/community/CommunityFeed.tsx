@@ -54,8 +54,8 @@ export function CommunityFeed() {
                       variant="ghost"
                       size="sm"
                       className={cn(
-                        "h-10 px-4 gap-2 font-black rounded-none border-r-3 border-foreground hover:bg-accent",
-                        post.userVote === 'up' && "bg-accent"
+                        "h-10 px-4 gap-2 font-black rounded-none border-r-3 border-foreground hover:bg-secondary/20",
+                        post.userVote === 'up' && "bg-secondary text-white"
                       )}
                       onClick={() => handleVote(post.id, 'up')}
                     >

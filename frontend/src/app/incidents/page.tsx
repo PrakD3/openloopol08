@@ -92,7 +92,7 @@ export default function IncidentsPage() {
 
                 <div className="flex flex-wrap gap-2 pt-2">
                   {incident.tags.map((tag) => (
-                    <span key={tag} className="text-[10px] font-black uppercase tracking-[0.2em] bg-accent px-3 py-1 border-2 border-foreground bk-shadow-sm">
+                    <span key={tag} className="text-[10px] font-black uppercase tracking-[0.2em] bg-secondary text-white px-3 py-1 border-2 border-foreground bk-shadow-sm">
                       #{tag}
                     </span>
                   ))}
@@ -102,7 +102,7 @@ export default function IncidentsPage() {
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                     {t('incidents.videoCount')}: {incident.videoCount} SAMPLES
                   </p>
-                  <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+                  <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                 </div>
               </CardContent>
             </Card>

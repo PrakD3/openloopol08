@@ -31,7 +31,7 @@ export function VerdictCard({ result }: VerdictCardProps) {
   };
 
   return (
-    <Card className={cn('border-4 transition-all bk-noise', result.verdict === 'real' ? 'bg-accent/20' : 'bg-destructive/10')}>
+    <Card className={cn('border-4 transition-all bk-noise', result.verdict === 'real' ? 'bg-secondary/20' : 'bg-destructive/10')}>
       <CardHeader className="border-b-4 border-foreground">
         <div className="flex items-center justify-between flex-wrap gap-6">
           <div className="space-y-2">
@@ -48,7 +48,7 @@ export function VerdictCard({ result }: VerdictCardProps) {
               label={t('analysis.credibilityScore')}
               size={80}
               strokeWidth={12}
-              colorClass={result.verdict === 'real' ? 'text-accent' : 'text-destructive'}
+              colorClass={result.verdict === 'real' ? 'text-clash-3' : 'text-destructive'}
             />
             <ScoreRing
               score={result.panicIndex * 10}
@@ -106,7 +106,7 @@ export function VerdictCard({ result }: VerdictCardProps) {
           ))}
         </div>
 
-        <Button onClick={handleShare} variant="accent" size="xl" className="w-full text-lg">
+        <Button onClick={handleShare} variant="default" size="xl" className="w-full text-lg">
           <Share2 className="h-5 w-5 mr-3" />
           {t('analysis.shareResult')}
         </Button>

@@ -16,7 +16,7 @@ export function ModeToggle() {
       </Badge>
  
       <Button
-        variant={appMode === 'real' ? 'destructive' : 'accent'}
+        variant={appMode === 'real' ? 'destructive' : 'secondary'}
         size="sm"
         onClick={toggleAppMode}
         className="h-8 px-3 font-black text-[10px] uppercase tracking-widest border-2 bk-shadow-sm"

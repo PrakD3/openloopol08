@@ -56,8 +56,8 @@ export default function HowItWorksPage() {
         </div>
 
         {/* Architecture Diagram */}
-        <Card className="mb-12 border-4 border-foreground shadow-bk bg-clash-1/20">
-          <CardHeader className="border-b-4 border-foreground bg-clash-1/30">
+        <Card className="mb-12 border-4 border-foreground shadow-bk bg-secondary/10">
+          <CardHeader className="border-b-4 border-foreground bg-secondary/20">
             <CardTitle className="flex items-center gap-3 font-black uppercase tracking-tight">
               <Server className="h-6 w-6" />
               Architecture Overview

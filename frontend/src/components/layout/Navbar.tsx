@@ -29,8 +29,8 @@ export function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="p-1 border-3 border-foreground bg-accent bk-shadow-sm group-hover:translate-x-[2px] group-hover:translate-y-[2px] group-hover:shadow-none transition-all">
-              <Shield className="h-8 w-8 text-foreground" />
+            <div className="p-1 border-3 border-foreground bg-primary bk-shadow-sm group-hover:translate-x-[2px] group-hover:translate-y-[2px] group-hover:shadow-none transition-all">
+              <Shield className="h-8 w-8 text-primary-foreground" />
             </div>
             <span className="text-2xl font-black uppercase tracking-tighter">Vigilens</span>
           </Link>
@@ -83,7 +83,7 @@ export function Navbar() {
                 className={cn(
                   'block px-4 py-3 text-lg font-black uppercase border-3 border-transparent',
                   pathname === link.href
-                    ? 'bg-accent border-foreground bk-shadow-sm'
+                    ? 'bg-primary text-primary-foreground border-foreground bk-shadow-sm'
                     : 'text-foreground hover:bg-secondary/20'
                 )}
                 onClick={() => setMobileOpen(false)}

@@ -88,9 +88,9 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl">
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { icon: Zap, title: 'DeepFake Detector', desc: 'CrossEfficientViT model analyses every keyframe for AI generation artifacts', color: 'bg-neon-pink' },
-              { icon: Eye, title: 'Source Hunter', desc: 'Reverse image search + EXIF metadata to find the earliest known source', color: 'bg-neon-green' },
-              { icon: Globe, title: 'Context Analyser', desc: 'Whisper transcription + vision LLM verifies location, language, and timing', color: 'bg-neon-blue' },
+              { icon: Zap, title: 'DeepFake Detector', desc: 'CrossEfficientViT model analyses every keyframe for AI generation artifacts', color: 'bg-clash-3' },
+              { icon: Eye, title: 'Source Hunter', desc: 'Reverse image search + EXIF metadata to find the earliest known source', color: 'bg-secondary' },
+              { icon: Globe, title: 'Context Analyser', desc: 'Whisper transcription + vision LLM verifies location, language, and timing', color: 'bg-clash-2' },
             ].map((feature) => (
               <Card key={feature.title} className="bk-hover-scale cursor-pointer group">
                 <CardHeader className={cn("border-b-4", feature.color)}>
@@ -153,10 +153,10 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {[
-              { value: '2,847', label: 'Videos Analysed', color: 'text-neon-pink' },
-              { value: '61%', label: 'Misinformation Rate', color: 'text-neon-green' },
-              { value: '94%', label: 'Detection Accuracy', color: 'text-neon-blue' },
-              { value: '< 30s', label: 'Analysis Time', color: 'text-neon-orange' },
+              { value: '2,847', label: 'Videos Analysed', color: 'text-primary' },
+              { value: '61%', label: 'Misinformation Rate', color: 'text-clash-1' },
+              { value: '94%', label: 'Detection Accuracy', color: 'text-accent' },
+              { value: '< 30s', label: 'Analysis Time', color: 'text-secondary' },
             ].map((stat) => (
               <div key={stat.label} className="p-8 border-4 border-foreground bg-background bk-shadow-md text-center space-y-2">
                 <p className={cn("text-5xl font-black", stat.color)}>{stat.value}</p>

@@ -11,7 +11,7 @@ import type { VerdictType } from '@/types';
 const VerdictIcon = ({ verdict }: { verdict: VerdictType }) => {
   switch (verdict) {
     case 'real':
-      return <CheckCircle2 className="h-4 w-4 text-accent" />;
+      return <CheckCircle2 className="h-4 w-4 text-success" />;
     case 'misleading':
     case 'ai-generated':
       return <XCircle className="h-4 w-4 text-destructive" />;
@@ -26,8 +26,8 @@ export function BulletinBoard() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-4 bg-accent border-4 border-foreground p-4 bk-shadow-md -rotate-1">
-        <Megaphone className="h-8 w-8 text-foreground" />
+      <div className="flex items-center gap-4 bg-secondary text-white border-4 border-foreground p-4 bk-shadow-md -rotate-1">
+        <Megaphone className="h-8 w-8 text-white" />
         <h2 className="text-3xl font-black uppercase tracking-tighter">{t('bulletin.title')}</h2>
       </div>
       <div className="space-y-6">
@@ -36,7 +36,7 @@ export function BulletinBoard() {
             key={item.id}
             className={cn(
               'border-4 transition-all bk-hover-scale',
-              item.verdict === 'real' && 'bg-accent/10 border-foreground shadow-bk',
+              item.verdict === 'real' && 'bg-secondary/10 border-foreground shadow-bk',
               (item.verdict === 'misleading' || item.verdict === 'ai-generated') && 'bg-destructive/10 border-foreground shadow-bk',
               item.verdict === 'unverified' && 'bg-muted/10 border-foreground shadow-bk'
             )}

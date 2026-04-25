@@ -57,81 +57,85 @@
   --shadow-bk: var(--shadow-offset) var(--shadow-offset) 0px hsl(var(--shadow-color));
 }
 
-/* BoldKit - Neubrutalism Design System */
+/* BoldKit - Serious Industrial Design System */
 :root {
-  --background: 60 9% 98%;
-  --foreground: 240 10% 10%;
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
 
   --card: 0 0% 100%;
-  --card-foreground: 240 10% 10%;
+  --card-foreground: 222 47% 11%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 10%;
+  --popover-foreground: 222 47% 11%;
 
-  --primary: 0 84% 71%;
-  --primary-foreground: 240 10% 10%;
+  --primary: 222 47% 11%;
+  --primary-foreground: 210 20% 98%;
 
-  --secondary: 174 62% 56%;
-  --secondary-foreground: 240 10% 10%;
+  --secondary: 215 25% 27%;
+  --secondary-foreground: 210 20% 98%;
 
-  --accent: 49 100% 71%;
-  --accent-foreground: 240 10% 10%;
+  --accent: 38 92% 50%;
+  --accent-foreground: 222 47% 11%;
 
-  --muted: 60 5% 90%;
-  --muted-foreground: 240 4% 46%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
 
   --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
+  --destructive-foreground: 210 40% 98%;
 
-  --border: 240 10% 10%;
-  --input: 240 10% 10%;
-  --ring: 240 10% 10%;
+  --success: 165 80% 35%; /* Muted Industrial Green */
+  --success-foreground: 210 40% 98%;
+
+  --border: 222 47% 11%;
+  --input: 222 47% 11%;
+  --ring: 222 47% 11%;
 
   --radius: 0rem;
 
-  --shadow-color: 240 10% 10%;
+  --shadow-color: 222 47% 11%;
   --shadow-offset: 4px;
 
-  --neon-pink: 330 100% 65%;
-  --neon-green: 120 100% 50%;
-  --neon-blue: 195 100% 50%;
-  --neon-orange: 25 100% 55%;
-  --neon-purple: 280 100% 60%;
+  /* Industrial Tones */
+  --neon-pink: 215 25% 27%; /* Now Dark Slate */
+  --neon-green: 217 33% 17%; /* Now Deep Navy */
+  --neon-blue: 215 16% 47%; /* Now Steel Zinc */
+  --neon-orange: 25 30% 45%; /* Now Muted Terra */
+  --neon-purple: 222 47% 11%; /* Now Pitch */
 
-  --clash-1: 15 85% 60%;
-  --clash-2: 280 70% 50%;
-  --clash-3: 165 80% 45%;
-  --clash-4: 45 95% 55%;
+  --clash-1: 0 72% 51%; /* Alert Red */
+  --clash-2: 217 33% 17%; /* Deep Navy */
+  --clash-3: 215 25% 27%; /* Slate */
+  --clash-4: 210 40% 96%; /* Soft Zinc */
 }
 
 .dark {
-  --background: 240 10% 10%;
-  --foreground: 60 9% 98%;
+  --background: 222 47% 11%;
+  --foreground: 210 20% 98%;
 
-  --card: 240 10% 14%;
-  --card-foreground: 60 9% 98%;
+  --card: 222 47% 15%;
+  --card-foreground: 210 20% 98%;
 
-  --popover: 240 10% 14%;
-  --popover-foreground: 60 9% 98%;
+  --popover: 222 47% 15%;
+  --popover-foreground: 210 20% 98%;
 
-  --primary: 0 84% 71%;
-  --primary-foreground: 240 10% 10%;
+  --primary: 210 20% 98%;
+  --primary-foreground: 222 47% 11%;
 
-  --secondary: 174 62% 56%;
-  --secondary-foreground: 240 10% 10%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 20% 98%;
 
-  --accent: 49 100% 71%;
-  --accent-foreground: 240 10% 10%;
+  --accent: 38 92% 50%;
+  --accent-foreground: 222 47% 11%;
 
-  --muted: 240 10% 20%;
-  --muted-foreground: 60 5% 65%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
 
   --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
+  --destructive-foreground: 210 20% 98%;
 
-  --border: 60 9% 98%;
-  --input: 60 9% 98%;
-  --ring: 60 9% 98%;
+  --border: 210 20% 98%;
+  --input: 210 20% 98%;
+  --ring: 210 20% 98%;
 
   --shadow-color: 0 0% 0%;
 }

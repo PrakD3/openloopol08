@@ -17,7 +17,7 @@ function AgentStatusIcon({ status }: { status: AgentFinding['status'] }) {
     case 'running':
       return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
     case 'done':
-      return <CheckCircle2 className="h-4 w-4 text-accent" />;
+      return <CheckCircle2 className="h-4 w-4 text-success" />;
     case 'error':
       return <XCircle className="h-4 w-4 text-destructive" />;
     default:
@@ -30,7 +30,7 @@ export function AgentPanel({ agents }: AgentPanelProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="font-black text-xs text-foreground uppercase tracking-[0.2em] bg-accent inline-block px-3 py-1 border-3 border-foreground bk-shadow-sm mb-2">
+      <h3 className="font-black text-xs text-foreground uppercase tracking-[0.2em] bg-secondary text-white inline-block px-3 py-1 border-3 border-foreground bk-shadow-sm mb-2">
         {t('analysis.agents')}
       </h3>
       {agents.map((agent) => (
@@ -69,7 +69,7 @@ export function AgentPanel({ agents }: AgentPanelProps) {
               <ul className="space-y-2">
                 {agent.findings.map((finding, i) => (
                   <li key={i} className="text-xs font-bold text-foreground flex items-start gap-2 bg-secondary/10 p-2 border-2 border-foreground/20">
-                    <span className="text-accent font-black mt-0.5">»</span>
+                    <span className="text-primary font-black mt-0.5">»</span>
                     {finding}
                   </li>
                 ))}
