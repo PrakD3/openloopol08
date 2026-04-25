@@ -25,6 +25,8 @@ export interface AnalysisResult {
   originalDate: string | null;
   claimedLocation: string | null;
   actualLocation: string | null;
+  latitude: number | null;
+  longitude: number | null;
   keyFlags: string[];
   agents: AgentFinding[];
   videoUrl?: string;

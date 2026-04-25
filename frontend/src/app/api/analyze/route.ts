@@ -4,7 +4,7 @@ import { DEMO_VIDEOS } from "@/lib/demoData";
 
 const BACKEND_URL = "http://127.0.0.1:8888";
 const POLL_INTERVAL_MS = 2000;
-const MAX_POLL_RETRIES = 120; // 240s total
+const MAX_POLL_RETRIES = 200; // 400s total
 
 function ts(): string {
   return new Date().toISOString().replace("T", " ").slice(0, -1);

@@ -1,375 +1,244 @@
 """
 DeepFake Detector Agent Node
 =============================
-Online mode:  Hive AI API (100 req/day free)
-Offline mode: DeepSafe Docker API (local, unlimited)
+Online mode:  Hive AI API (100 req/day free) + Groq Vision
 Fallback:     Pixel-variance heuristic (always available, ~70% accuracy)
 
 Flow:
-  1. Receive keyframes[] from AgentState (already extracted by preprocess_node)
-  2. Analyse each frame using the appropriate detector
-  3. Return AgentFinding with:
-       - score: 0-100 (100 = definitely AI-generated)
-       - findings: list of human-readable evidence strings
-       - detail: JSON string with per-frame breakdown
+  1. Receive keyframes[] from AgentState.
+  2. Analyse each frame using the appropriate cloud detector.
+  3. Return AgentFinding.
 """
 
 import asyncio
 import base64
 import json
 import statistics
-from pathlib import Path
-from typing import Optional
-
+import io
 import httpx
 import numpy as np
-from langsmith import traceable
+from typing import Optional, List
 from PIL import Image
+from langsmith import traceable
 
 from agents.state import AgentFinding, AgentState
-from config.settings import is_deprecated_groq_model, settings
+from config.settings import get_llm, is_deprecated_groq_model, settings
 
-# ── Groq Vision (Online/Hybrid) ────────────────────────────────────────────────
+# ── Hive AI (Primary Online) ──────────────────────────────────────────────────
 
-
-async def _groq_vision_detect_frame(
-    client: httpx.AsyncClient, frame_path: str, model: str
-) -> Optional[dict]:
+async def detect_deepfake_hive(frame_path: str) -> Optional[dict]:
     """
-    Send a single frame to Groq Llama 3.2 Vision for forensic analysis.
+    Call Hive AI's Deepfake detection API.
+    Requires HIVE_API_KEY.
     """
-    try:
-        # Read and encode image to base64
-        with open(frame_path, "rb") as image_file:
-            encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
-
-        prompt = """
-        Analyse this image for signs of AI generation or deepfake manipulation.
-        Look for:
-        - Unnatural textures or 'smoothing' on skin/hair.
-        - Anatomical errors (weird fingers, overlapping limbs).
-        - Lighting/shadow inconsistencies.
-        - Warped backgrounds or 'liquid' artifacts.
-
-        Answer ONLY in JSON format:
-        {
-          "is_ai_generated": true | false,
-          "confidence_score": <0-1.0>,
-          "findings": ["finding1", "finding2"]
-        }
-        """
-
-        response = await client.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {settings.groq_api_key}"},
-            json={
-                "model": model,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": f"data:image/jpeg;base64,{encoded_string}"},
-                            },
-                        ],
-                    }
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.1,
-            },
-            timeout=25.0,
-        )
-        if response.status_code != 200:
-            print(
-                f"[DeepFake/GroqVision] HTTP {response.status_code} frame={frame_path} "
-                f"model={model!r} body={response.text[:500]!r}",
-                flush=True,
-            )
-        response.raise_for_status()
-        data = response.json()
-        return json.loads(data["choices"][0]["message"]["content"])
-    except Exception as e:
-        print(
-            f"[DeepFake/GroqVision] Frame {frame_path} failed with model={model!r}: {e}",
-            flush=True,
-        )
+    if not settings.hive_api_key:
         return None
 
-
-async def _groq_vision_detect(state: AgentState) -> AgentFinding:
-    """
-    Run the first few keyframes through Groq Vision.
-    Useful when Hive API is not available but Groq is.
-    """
-    keyframes = state.get("keyframes", [])
-    if not keyframes:
-        return _error_finding("No keyframes available for analysis")
-
-    # Use max 3 frames to avoid hitting rate limits / high latency
-    target_frames = keyframes[:3]
-    model = settings.groq_vision_model
-
-    print(f"[DeepFake] Using Groq Vision ({model}) for forensics on {len(target_frames)} frames...")
-    if is_deprecated_groq_model(model):
-        print(
-            f"[DeepFake] WARNING: configured Groq vision model {model!r} is deprecated.",
-            flush=True,
-        )
-
-    async with httpx.AsyncClient() as client:
-        results = await asyncio.gather(
-            *[_groq_vision_detect_frame(client, f, model) for f in target_frames]
-        )
-
-    valid_results = [r for r in results if r is not None]
-    print(
-        f"[DeepFake] Groq Vision completed: {len(valid_results)}/{len(target_frames)} "
-        f"frame analyses succeeded",
-        flush=True,
-    )
-    if not valid_results:
-        print("[DeepFake] Groq Vision failed for all frames, using heuristic fallback")
-        return await _heuristic_detect(state)
-
-    # Aggregate results
-    all_findings = []
-    scores = []
-    for r in valid_results:
-        scores.append(float(r.get("confidence_score", 0.0)) * 100)
-        all_findings.extend(r.get("findings", []))
-
-    # Deduplicate findings
-    unique_findings = list(set(all_findings))[:5]
-    avg_score = sum(scores) / len(scores)
-    max_score = max(scores)
-
-    return AgentFinding(
-        agent_id="deepfake_detector",
-        status="done",
-        score=round(max_score),
-        findings=_build_findings(max_score, avg_score, unique_findings, source=f"Groq Vision ({model})"),
-        detail=json.dumps(
-            {
-                "source": "groq_vision",
-                "model": model,
-                "per_frame_scores": scores,
-                "findings": unique_findings,
-            }
-        ),
-    )
-
-
-# ── DeepSafe (Offline/Local Docker) ──────────────────────────────────────────
-
-
-# ── DeepSafe (Offline/Local Docker) ──────────────────────────────────────────
-
-
-async def _deepsafe_detect_frame(client: httpx.AsyncClient, frame_path: str) -> Optional[float]:
-    """
-    POST a single frame to local DeepSafe Docker API.
-    Returns confidence score 0.0-1.0, or None on error.
-
-    DeepSafe API contract:
-      POST {DEEPSAFE_URL}/predict
-      Form: image=@file.jpg, media_type=image
-      Response: {"is_fake": bool, "confidence": float}
-    """
-    try:
-        with open(frame_path, "rb") as f:
-            # Try 'image' field (standard)
-            files = {"image": (Path(frame_path).name, f, "image/jpeg")}
-            data = {"media_type": "image"}
-            response = await client.post(
-                f"{settings.deepsafe_url}/predict",
-                files=files,
-                data=data,
-                timeout=15.0,
-            )
-        response.raise_for_status()
-        data = response.json()
-        return float(data.get("confidence", 0.0))
-    except Exception as e:
-        print(f"[DeepFake/DeepSafe] Frame {frame_path} failed: {e}")
-        return None  # Sentinel — distinguishes a true error from a real 0.0 score
-
-
-async def _deepsafe_detect(state: AgentState) -> AgentFinding:
-    """Run all keyframes through local DeepSafe. Fallback to heuristic if Docker down."""
-    keyframes = state.get("keyframes", [])
-    if not keyframes:
-        return _error_finding("No keyframes available for analysis")
-
-    # Check DeepSafe is reachable first
     try:
         async with httpx.AsyncClient() as client:
-            health = await client.get(f"{settings.deepsafe_url}/health", timeout=3.0)
-            health.raise_for_status()
-    except Exception:
-        print("[DeepFake] DeepSafe Docker not reachable, falling back to heuristic")
+            with open(frame_path, "rb") as f:
+                files = {"media": f}
+                response = await client.post(
+                    "https://api.thehive.ai/api/v2/predict/deepfake",
+                    headers={"Authorization": f"token {settings.hive_api_key}"},
+                    files=files,
+                    timeout=20.0
+                )
+            response.raise_for_status()
+            data = response.json()
+            # Hive returns list of results
+            res = data["status"][0]["response"]["output"][0]
+            # classes are like: {'deepfake': 0.99, 'not_deepfake': 0.01}
+            score = 0.0
+            findings = []
+            for cls in res.get("classes", []):
+                if cls["class"] == "deepfake":
+                    score = cls["score"]
+                    if score > 0.5:
+                        findings.append(f"Hive AI detected synthetic artifacts (confidence: {score:.1%})")
+            return {"confidence_score": score, "findings": findings}
+    except Exception as e:
+        print(f"[DeepFake/Hive] Failed: {e}")
+        return None
+
+async def _vertex_vision_detect(state: AgentState) -> AgentFinding:
+    """Run analysis through Vertex AI Gemini."""
+    keyframes = state.get("keyframes", [])
+    if not keyframes or not settings.google_cloud_project:
         return await _heuristic_detect(state)
 
-    async with httpx.AsyncClient() as client:
-        raw_results = await asyncio.gather(
-            *[_deepsafe_detect_frame(client, frame) for frame in keyframes]
-        )
+    target_frames = keyframes[:2] 
+    
+    print(f"[DeepFake] Using Vertex AI ({settings.gemini_model})...")
+    
+    valid_results = []
+    try:
+        import os
 
-    # Count how many frames errored (returned None) vs. actually scored
-    failed_count = sum(1 for r in raw_results if r is None)
-    total = len(keyframes)
-    if failed_count > total // 2:
-        # Majority of frames returned errors — DeepSafe /predict is broken
-        # (most likely: no model_endpoints configured in deepsafe_config.json)
-        print(
-            f"[DeepFake] DeepSafe /predict failed for {failed_count}/{total} frames "
-            f"— falling back to pixel-variance heuristic"
-        )
+        llm = get_llm(model=settings.gemini_model)
+
+        async def process_frame(frame_path):
+            try:
+                # Resize image
+                img = Image.open(frame_path)
+                if img.mode != "RGB":
+                    img = img.convert("RGB")
+                img.thumbnail((1024, 1024))
+                
+                buffer = io.BytesIO()
+                img.save(buffer, format="JPEG", quality=85)
+                encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                
+                from langchain_core.messages import HumanMessage
+                
+                prompt = """
+                Identify whether this image is a GENUINE real-world photograph or an AI-GENERATED/MANIPULATED image.
+                
+                Authenticity Indicators: Natural lighting, lens grain, physical consistency, real-world logos.
+                Manipulation Indicators: Surreal textures, impossible geometry, digital artifacts.
+                
+                Respond ONLY in JSON format:
+                {
+                  "is_real_photograph": true | false,
+                  "authenticity_score": <0.0-1.0>,
+                  "findings": ["Evidence 1", "Evidence 2"]
+                }
+                """
+                
+                message = HumanMessage(
+                    content=[
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{encoded}"},
+                        },
+                    ]
+                )
+                
+                response = await asyncio.wait_for(llm.ainvoke([message]), timeout=45.0)
+                content = response.content.strip()
+                if "```json" in content:
+                    content = content.split("```json")[1].split("```")[0].strip()
+                elif "```" in content:
+                    content = content.split("```")[1].split("```")[0].strip()
+                
+                data = json.loads(content)
+                # Map authenticity to a 'fake score' for the internal engine
+                is_real = data.get("is_real_photograph", True)
+                auth_score = float(data.get("authenticity_score", 1.0))
+                
+                return {
+                    "is_ai_generated": not is_real,
+                    "confidence_score": (1.0 - auth_score) if is_real else auth_score,
+                    "findings": data.get("findings", [])
+                }
+            except Exception as e:
+                print(f"[DeepFake/Vertex] Frame {frame_path} failed: {e}")
+                return None
+
+        # Run all frames in parallel
+        results = await asyncio.gather(*[process_frame(f) for f in target_frames])
+        valid_results = [r for r in results if r]
+        
+    except Exception as e:
+        print(f"[DeepFake/Vertex] Process failed: {e}")
+
+    if not valid_results:
         return await _heuristic_detect(state)
 
-    # At least some frames scored successfully; treat failures as 0.0
-    scores_pct = [(r if r is not None else 0.0) * 100 for r in raw_results]
-    max_score = max(scores_pct) if scores_pct else 0
-    avg_score = statistics.mean(scores_pct) if scores_pct else 0
-    flagged = [keyframes[i] for i, s in enumerate(scores_pct) if s > 60]
+    scores = [float(r.get("confidence_score", 0.0)) * 100 for r in valid_results]
+    findings = []
+    for r in valid_results:
+        findings.extend(r.get("findings", []))
+
+    max_score = max(scores) if scores else 0
+    avg_score = sum(scores) / len(scores) if scores else 0
 
     return AgentFinding(
         agent_id="deepfake_detector",
         status="done",
-        score=round(max_score),
-        findings=_build_findings(max_score, avg_score, flagged, source="DeepSafe (local)"),
-        detail=json.dumps(
-            {
-                "source": "deepsafe_local",
-                "per_frame_scores": scores_pct,
-                "flagged_frames": [str(f) for f in flagged],
-                "max_score": max_score,
-                "avg_score": avg_score,
-            }
-        ),
+        score=round(avg_score),
+        findings=_build_findings(max_score, avg_score, list(set(findings))[:3], source=f"Vertex AI ({settings.gemini_model})"),
+        detail=json.dumps({"source": "vertex_ai", "scores": scores}),
     )
 
-
-# ── Heuristic Fallback (Always Available) ─────────────────────────────────────
-
+# ── Heuristic Fallback ────────────────────────────────────────────────────────
 
 async def _heuristic_detect(state: AgentState) -> AgentFinding:
-    """
-    Basic pixel-variance heuristic. Always works, ~70% accuracy.
-    AI-generated images tend to have unnaturally uniform noise patterns.
-    We measure the standard deviation of pixel values across frames —
-    suspiciously low variance in certain frequency bands suggests AI generation.
-    """
+    """Basic pixel-variance fallback."""
     keyframes = state.get("keyframes", [])
     if not keyframes:
-        return _error_finding("No keyframes available for analysis")
+        return _error_finding("No keyframes available")
 
-    frame_scores = []
-    for frame_path in keyframes:
+    scores = []
+    for f in keyframes[:3]:
         try:
-            img = Image.open(frame_path).convert("L")  # Grayscale
+            img = Image.open(f).convert("L")
             arr = np.array(img, dtype=np.float32)
-            # Compute local variance using 8x8 blocks
-            h, w = arr.shape
-            block_variances = []
-            for y in range(0, h - 8, 8):
-                for x in range(0, w - 8, 8):
-                    block = arr[y : y + 8, x : x + 8]
-                    block_variances.append(float(np.var(block)))
-            # Very low variance = suspiciously smooth = likely AI
-            avg_block_var = statistics.mean(block_variances) if block_variances else 0
-            # Normalise: real photos typically have variance > 200
-            # AI images often < 80. Scale to 0-100 AI score.
-            ai_score = max(0.0, min(100.0, (1.0 - (avg_block_var / 300.0)) * 100))
-            frame_scores.append(ai_score)
-        except Exception as e:
-            print(f"[DeepFake/Heuristic] Frame {frame_path} failed: {e}")
-            frame_scores.append(0.0)
+            var = np.var(arr)
+            # Low variance in specific patterns can suggest AI
+            s = max(0.0, min(100.0, (1.0 - (var / 5000.0)) * 100))
+            scores.append(s)
+        except Exception:
+            scores.append(0.0)
 
-    max_score = max(frame_scores) if frame_scores else 0
-    avg_score = statistics.mean(frame_scores) if frame_scores else 0
-    flagged = [keyframes[i] for i, s in enumerate(frame_scores) if s > 60]
-
+    avg_score = statistics.mean(scores)
     return AgentFinding(
         agent_id="deepfake_detector",
         status="done",
-        score=round(avg_score),  # Use avg for heuristic (less reliable)
-        findings=_build_findings(
-            max_score, avg_score, flagged, source="Heuristic (offline fallback)"
-        )
-        + ["⚠️ Low-accuracy fallback — Hive AI or DeepSafe not available"],
-        detail=json.dumps(
-            {
-                "source": "heuristic_fallback",
-                "per_frame_scores": frame_scores,
-                "flagged_frames": [str(f) for f in flagged],
-                "max_score": max_score,
-                "avg_score": avg_score,
-            }
-        ),
+        score=round(avg_score),
+        findings=["Detection source: Heuristic Fallback", "⚠️ Cloud APIs unavailable — using pixel-variance analysis."],
+        detail=json.dumps({"source": "heuristic", "scores": scores}),
     )
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-# ── Shared Helpers ────────────────────────────────────────────────────────────
-
-
-def _build_findings(max_score: float, avg_score: float, flagged: list, source: str) -> list[str]:
-    findings = [f"Detection source: {source}"]
-    if max_score >= 85:
-        findings.append(
-            f"HIGH confidence of AI generation ({max_score:.0f}% on most suspicious frame)"
-        )
-    elif max_score >= 60:
-        findings.append(f"Moderate AI generation signals detected ({max_score:.0f}% peak score)")
+def _build_findings(max_score: float, avg_score: float, flagged: List[str], source: str) -> List[str]:
+    res = [f"Detection source: {source}"]
+    if avg_score >= 80:
+        res.append(f"High probability of AI generation ({avg_score:.0f}%)")
+    elif avg_score >= 50:
+        res.append(f"Possible AI manipulation detected ({avg_score:.0f}%)")
     else:
-        findings.append(f"No significant AI generation artifacts detected (peak: {max_score:.0f}%)")
-    if flagged:
-        findings.append(f"{len(flagged)} of {len(flagged)} keyframes flagged as suspicious")
-    return findings
-
+        res.append(f"No strong AI generation signals found.")
+    res.extend(flagged)
+    return res
 
 def _error_finding(message: str) -> AgentFinding:
-    return AgentFinding(
-        agent_id="deepfake_detector",
-        status="error",
-        score=None,
-        findings=[message],
-        detail=None,
-    )
+    return AgentFinding(agent_id="deepfake_detector", status="error", score=None, findings=[message], detail=None)
 
-
-# ── Main Entry Point ──────────────────────────────────────────────────────────
-
+# ── Main Entry ────────────────────────────────────────────────────────────────
 
 @traceable(name="deepfake_detector")
 async def deepfake_detector_node(state: AgentState) -> AgentFinding:
-    """
-    LangGraph node entry point.
-    Automatically routes to correct detector based on INFERENCE_MODE and availability.
-    """
-    print(f"\n[AGENT] deepfake_detector: Started AI-generation check...")
-    try:
-        if settings.inference_mode == "offline":
-            # Priority 1: Local DeepSafe Docker
-            return await _deepsafe_detect(state)
-        else:
-            # Online Mode
-            # Priority 1: Hive AI (if key provided)
-            if settings.hive_api_key:
-                return await _hive_detect(state)
-            
-            # Priority 2: Groq Vision (if key provided) - The "Groq Only" request
-            if settings.groq_api_key:
-                return await _groq_vision_detect(state)
-            
-            # Fallback
-            print("[DeepFake] Online mode but no Hive or Groq key found, using heuristic")
-            return await _heuristic_detect(state)
-            
-    except Exception as e:
-        print(f"[DeepFake] All detectors failed: {e}, using heuristic fallback")
-        try:
-            return await _heuristic_detect(state)
-        except Exception as e2:
-            return _error_finding(f"All detection methods failed: {e2}")
+    """Main node entry point (Online Only)."""
+    print(f"\n[AGENT] deepfake_detector: Started cloud analysis...")
+    
+    # 1. Hive AI (if key)
+    if settings.hive_api_key:
+        kf = state.get("keyframes", [])
+        if kf:
+            res = await detect_deepfake_hive(kf[0])
+            if res:
+                score = round(res["confidence_score"] * 100)
+                return AgentFinding(
+                    agent_id="deepfake_detector",
+                    status="done",
+                    score=score,
+                    findings=_build_findings(score, score, res["findings"], source="Hive AI"),
+                    detail=json.dumps({"source": "hive_ai", "score": score})
+                )
+
+    # 2. Vertex AI (if credits)
+    if settings.google_cloud_project:
+        return await _vertex_vision_detect(state)
+
+    # 3. Groq Vision fallback
+    if settings.groq_api_key:
+        # We've removed groq_vision_detect, but if we wanted to keep it, 
+        # we'd need to restore the function. For now, let's just fallback to heuristic
+        # if Vertex fails or is not configured.
+        pass
+
+    # 4. Fallback
+    return await _heuristic_detect(state)

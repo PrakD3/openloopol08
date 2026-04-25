@@ -8,6 +8,7 @@ from langsmith import traceable
 
 from agents.nodes.context_analyser import context_analyser_node
 from agents.nodes.deepfake_detector import deepfake_detector_node
+from agents.nodes.geolocation_hunter import geolocation_node
 from agents.nodes.notification_node import notification_node
 from agents.nodes.orchestrator import orchestrator_node
 from agents.nodes.source_hunter import source_hunter_node
@@ -225,13 +226,41 @@ async def parallel_analysis_node(state: AgentState) -> Dict:
             update_progress(job_id, 0.80, "context_error")
             raise
 
+    async def timed_geolocation():
+        t0 = time.monotonic()
+        print(f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] [geolocation_hunter] \u2192 start", flush=True)
+        try:
+            result = await geolocation_node(state)
+            elapsed = time.monotonic() - t0
+            print(
+                f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] [geolocation_hunter] \u2190 done in {elapsed:.1f}s",
+                flush=True,
+            )
+            _summarise_finding("geolocation_hunter", result.get("geolocation_result"))
+            update_progress(job_id, 0.75, "geolocation_done")
+            return result
+        except Exception as exc:
+            elapsed = time.monotonic() - t0
+            print(
+                f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] [geolocation_hunter] !! RAISED after {elapsed:.1f}s: "
+                f"{type(exc).__name__}: {exc}",
+                flush=True,
+            )
+            update_progress(job_id, 0.75, "geolocation_error")
+            raise
+
     try:
-        deepfake_result, source_result, context_result = await asyncio.gather(
+        results = await asyncio.gather(
             timed_deepfake(),
             timed_source(),
             timed_context(),
+            timed_geolocation(),
             return_exceptions=False,
         )
+        deepfake_result = results[0]
+        source_result = results[1]
+        context_result = results[2]
+        geo_result_data = results[3]
     except Exception as exc:
         node_elapsed = time.monotonic() - node_start
         print(
@@ -255,6 +284,11 @@ async def parallel_analysis_node(state: AgentState) -> Dict:
         "deepfake_result": deepfake_result,
         "source_result": source_result,
         "context_result": context_result,
+        "geolocation_result": geo_result_data.get("geolocation_result"),
+        "actual_location": geo_result_data.get("actual_location"),
+        "latitude": geo_result_data.get("latitude"),
+        "longitude": geo_result_data.get("longitude"),
+        "key_flags": list(set((state.get("key_flags") or []) + (geo_result_data.get("key_flags") or [])))
     }
 
 

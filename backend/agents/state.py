@@ -32,6 +32,7 @@ class AgentState(TypedDict):
     deepfake_result: Optional[AgentFinding]
     source_result: Optional[AgentFinding]
     context_result: Optional[AgentFinding]
+    geolocation_result: Optional[AgentFinding]
 
     # Final
     verdict: Optional[str]
@@ -42,6 +43,8 @@ class AgentState(TypedDict):
     original_date: Optional[str]
     claimed_location: Optional[str]
     actual_location: Optional[str]
+    latitude: Optional[float]
+    longitude: Optional[float]
     key_flags: List[str]
     error: Optional[str]
 

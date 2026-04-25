@@ -11,8 +11,8 @@ export function ModeToggle() {
 
   return (
     <div className="flex items-center gap-3">
-      <Badge variant={inferenceMode === 'online' ? 'default' : 'secondary'} className="border-2 font-black text-[10px] uppercase tracking-widest px-2">
-        {inferenceMode === 'online' ? '🌐 ONLINE' : '📦 OFFLINE'}
+      <Badge variant="default" className="border-2 font-black text-[10px] uppercase tracking-widest px-2">
+        🌐 ONLINE
       </Badge>
  
       <Button
@@ -23,13 +23,6 @@ export function ModeToggle() {
       >
         {appMode === 'demo' ? '🎬 DEMO' : '🔴 REAL'}
       </Button>
- 
-      {appMode === 'real' && inferenceMode === 'offline' && (
-        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-destructive bg-destructive/10 border-2 border-destructive px-2 py-0.5">
-          <AlertTriangle className="h-3 w-3" />
-          <span className="hidden xl:inline">LOCAL MODELS REQ</span>
-        </div>
-      )}
     </div>
   );
 }

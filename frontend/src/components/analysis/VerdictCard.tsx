@@ -100,16 +100,22 @@ export function VerdictCard({ result }: VerdictCardProps) {
                   {item.value}
                 </a>
               ) : (
-                <p className={cn("text-sm font-black uppercase", item.destructive ? "text-destructive" : "text-foreground")}>{item.value}</p>
+                <p className="text-sm font-black uppercase truncate">{item.value}</p>
               )}
             </div>
           ))}
         </div>
 
-        <Button onClick={handleShare} variant="default" size="xl" className="w-full text-lg">
-          <Share2 className="h-5 w-5 mr-3" />
-          {t('analysis.shareResult')}
-        </Button>
+
+        <div className="flex justify-end pt-4">
+          <Button
+            onClick={handleShare}
+            className="bk-shadow-sm font-black uppercase tracking-widest"
+          >
+            <Share2 className="mr-2 h-4 w-4" />
+            {t('analysis.shareReport')}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

@@ -19,10 +19,13 @@ Free API (key required, free tier):
 import asyncio
 import base64
 import json
+import logging
+import httpx
+import io
+from PIL import Image
 from pathlib import Path
 from typing import Optional
 
-import httpx
 from langsmith import traceable
 
 from agents.state import AgentFinding, AgentState
@@ -107,26 +110,9 @@ async def _transcribe_audio(audio_path: Optional[str]) -> Optional[str]:
                 flush=True,
             )
 
-    # ── Priority 3: Local Whisper (always available, slow cold start) ─────────
-    print(
-        f"[Context/Whisper] Loading local Whisper model "
-        f"'{settings.whisper_model_size}' (may download on first run)...",
-        flush=True,
-    )
-    try:
-        import whisper
-
-        model = whisper.load_model(settings.whisper_model_size)
-        result = model.transcribe(audio_path)
-        text = result.get("text", "")
-        print(
-            f"[Context/Whisper] Local transcription succeeded ({len(text)} chars)",
-            flush=True,
-        )
-        return text
-    except Exception as e:
-        print(f"[Context/Whisper] Local model failed: {e}", flush=True)
-        return None
+    # ── Priority 3: Fail (Local Whisper removed) ─────────────────────────────
+    print("[Context/Whisper] No cloud transcription keys available. Transcription skipped.")
+    return None
 
 
 # ── OCR on Keyframes ──────────────────────────────────────────────────────────
@@ -134,63 +120,62 @@ async def _transcribe_audio(audio_path: Optional[str]) -> Optional[str]:
 
 async def _extract_ocr_text_online(keyframes: list[str]) -> str:
     """
-    Extract text from keyframes using Groq Vision (Online OCR).
-    This replaces local EasyOCR for better accuracy and zero local overhead.
+    Extract text from keyframes using Vertex AI Gemini (Online OCR).
+    This uses the user's $1,000 credits and avoids Groq rate limits.
     """
-    if not keyframes or not settings.groq_api_key:
+    if not keyframes or not settings.google_cloud_project:
         return ""
 
-    # We take the 1st and middle frames to capture most on-screen text
-    # without hitting heavy rate limits.
+    # We take the 1st and middle frames
     indices = [0, len(keyframes) // 2] if len(keyframes) > 1 else [0]
     target_frames = [keyframes[i] for i in indices]
     
     all_text = []
-    async with httpx.AsyncClient() as client:
-        for frame_path in target_frames:
+    try:
+        from langchain_google_vertexai import ChatVertexAI
+        
+        llm = ChatVertexAI(
+            model_name=settings.gemini_model,
+            project=settings.google_cloud_project,
+            location=settings.google_cloud_location,
+            temperature=0.0
+        )
+
+        async def process_frame(frame_path):
             try:
-                with open(frame_path, "rb") as f:
-                    encoded = base64.b64encode(f.read()).decode("utf-8")
+                # Resize image
+                img = Image.open(frame_path)
+                if img.mode != "RGB":
+                    img = img.convert("RGB")
+                img.thumbnail((1024, 1024))
                 
-                response = await client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {settings.groq_api_key}"},
-                    json={
-                        "model": settings.groq_vision_model,
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": "List all visible text in this image, including subtitles, headlines, or signs. Return ONLY the text, separated by spaces."},
-                                    {
-                                        "type": "image_url",
-                                        "image_url": {"url": f"data:image/jpeg;base64,{encoded}"},
-                                    },
-                                ],
-                            }
-                        ],
-                        "temperature": 0.0,
-                    },
-                    timeout=15.0,
+                buffer = io.BytesIO()
+                img.save(buffer, format="JPEG", quality=85)
+                encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                
+                from langchain_core.messages import HumanMessage
+                message = HumanMessage(
+                    content=[
+                        {"type": "text", "text": "List all visible text in this image, including subtitles, headlines, or signs. Return ONLY the text, separated by spaces."},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{encoded}"},
+                        },
+                    ]
                 )
-                if response.status_code == 200:
-                    data = response.json()
-                    text = data["choices"][0]["message"]["content"].strip()
-                    if text:
-                        all_text.append(text)
-                else:
-                    print(
-                        f"[Context/OnlineOCR] HTTP {response.status_code} "
-                        f"model={settings.groq_vision_model!r} frame={frame_path} "
-                        f"body={response.text[:500]!r}",
-                        flush=True,
-                    )
+                
+                response = await asyncio.wait_for(llm.ainvoke([message]), timeout=30.0)
+                return response.content.strip()
             except Exception as e:
-                print(
-                    f"[Context/OnlineOCR] Frame {frame_path} failed "
-                    f"with model={settings.groq_vision_model!r}: {e}",
-                    flush=True,
-                )
+                print(f"[Context/VertexOCR] Frame {frame_path} failed: {e}")
+                return ""
+
+        # Run all frames in parallel
+        results = await asyncio.gather(*[process_frame(f) for f in target_frames])
+        all_text = [r for r in results if r]
+        
+    except Exception as e:
+        print(f"[Context/VertexOCR] OCR process failed: {e}")
     
     return " | ".join(all_text)
 
@@ -359,12 +344,12 @@ Based only on the above, answer in JSON (no markdown):
   "claimed_location": "<location name from video or metadata>",
   "language_detected": "<primary language spoken>",
   "event_type": "flood | earthquake | fire | tsunami | cyclone | tornado | volcano | missile | airstrike | explosion | attack | shooting | chemical | conflict | unknown",
-  "is_war_or_conflict": true | false,
+  "is_war_or_conflict": true | false, // ONLY true if it involves extreme violence: killing, shooting, bombing, or heavy weaponry. Minor fights, quarrels, or shouting are NOT considered war/conflict.
   "gdacs_match_found": true | false,
   "gdacs_match_name": "<event name if matched>",
   "location_consistency": true | false,
   "context_suspicion_score": <0-100>,
-  "summary": "<1-2 sentences what is happening in the video>",
+  "summary": "<1-2 sentences what is happening in the video. Mention if extreme violence is present.>",
   "flags": ["<flag1>", "<flag2>"]
 }}
 """
@@ -379,8 +364,8 @@ async def _analyse_context_with_llm(
         model_name = settings.groq_orchestrator_model
         is_vision = False
         
-        # If we have a Groq key and frames, we can use the vision model
-        if settings.inference_mode == "online" and settings.groq_api_key and keyframes:
+        # Always use cloud vision if we have a Groq key and frames
+        if settings.groq_api_key and keyframes:
             model_name = settings.groq_vision_model
             is_vision = True
 
@@ -405,10 +390,16 @@ async def _analyse_context_with_llm(
         )
 
         if is_vision and keyframes:
-            # Encode one representative frame (the middle one)
+            # Resize image to save tokens and avoid 429
             mid_idx = len(keyframes) // 2
-            with open(keyframes[mid_idx], "rb") as f:
-                encoded = base64.b64encode(f.read()).decode("utf-8")
+            img = Image.open(keyframes[mid_idx])
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            img.thumbnail((768, 768))
+            
+            buffer = io.BytesIO()
+            img.save(buffer, format="JPEG", quality=85)
+            encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
             
             print(f"[Context/LLM] Using Groq Vision ({model_name}) with representative frame...")
             if is_deprecated_groq_model(model_name):

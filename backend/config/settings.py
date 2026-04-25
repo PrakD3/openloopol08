@@ -1,6 +1,8 @@
 """Vigilens settings — single source of truth for all configuration."""
 
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Literal, Optional
 
 from pydantic_settings import BaseSettings
@@ -8,7 +10,6 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # ── Mode ──────────────────────────────────────────────────────────────────
-    inference_mode: Literal["online", "offline"] = "online"
     app_mode: Literal["demo", "real"] = "demo"
 
     # ── Groq (LLM + Whisper) ──────────────────────────────────────────────────
@@ -17,15 +18,14 @@ class Settings(BaseSettings):
     groq_vision_model: str = "meta-llama/llama-4-scout-17b-16e-instruct"
     groq_fast_model: str = "llama-3.1-8b-instant"
 
+    # ── Google Gemini ─────────────────────────────────────────────────────────
+    google_api_key: str = ""
+
     # Groq Speech-to-Text (replaces local Whisper on cold-start)
     # Models available: whisper-large-v3, whisper-large-v3-turbo
     whisper_use_groq: bool = True
     groq_whisper_model: str = "whisper-large-v3-turbo"
 
-    # ── Offline LLM (Ollama) ──────────────────────────────────────────────────
-    ollama_base_url: str = "http://localhost:11434"
-    ollama_orchestrator_model: str = "llama3.3"
-    ollama_vision_model: str = "llava:13b"
 
     # ── LangSmith ─────────────────────────────────────────────────────────────
     langsmith_api_key: str = ""
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # ── Deepfake detection ────────────────────────────────────────────────────
     hive_api_key: str = ""
-    deepsafe_url: str = "http://localhost:8001"
+    deepsafe_enabled: bool = False
 
     # ── Whisper (legacy / local fallback) ─────────────────────────────────────
     # whisper_use_groq=true takes priority over both of these.
@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     tineye_api_key: str = ""
     youtube_api_key: str = ""
     x_bearer_token: str = ""
+    google_cloud_project: str = "gdg-project-481105"
+    google_cloud_location: str = "us-central1"
+    google_cloud_key_path: str = "gcp-key.json"
+    gemini_model: str = "gemini-2.5-flash"
     bing_search_api_key: str = ""
 
     # ── Context analyser ──────────────────────────────────────────────────────
@@ -73,6 +77,29 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+# ── Auto-configure GCP Credentials ────────────────────────────────────────────
+
+def _find_gcp_key():
+    # Try local, then parent (root), then explicit backend
+    candidates = [
+        Path(settings.google_cloud_key_path),
+        Path("..") / settings.google_cloud_key_path,
+        Path("backend") / settings.google_cloud_key_path
+    ]
+    for p in candidates:
+        if p.exists():
+            return str(p.absolute())
+    return None
+
+key_path = _find_gcp_key()
+if key_path:
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = key_path
+    # Update settings to the absolute path for explicit loading later
+    settings.google_cloud_key_path = key_path
+    print(f"[SETTINGS] Found GCP key at: {key_path}")
+else:
+    print(f"[SETTINGS] WARNING: gcp-key.json not found in root or backend folder.")
+
 
 def _ts() -> str:
     return datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
@@ -91,7 +118,7 @@ def is_deprecated_groq_model(model_name: Optional[str]) -> bool:
 def log_runtime_configuration() -> None:
     groq_key_present = "yes" if settings.groq_api_key else "no"
     print(
-        f"[{_ts()}] [SETTINGS] inference_mode={settings.inference_mode!r} "
+        f"[{_ts()}] [SETTINGS] "
         f"app_mode={settings.app_mode!r} "
         f"groq_key={groq_key_present} "
         f"orchestrator_model={settings.groq_orchestrator_model!r} "
@@ -109,35 +136,47 @@ def log_runtime_configuration() -> None:
 
 def get_llm(model: Optional[str] = None):
     """
-    Return the appropriate LLM based on INFERENCE_MODE.
-
-    Priority:
-      offline → Ollama (local Docker container)
-      online  → Groq ChatGroq (cloud, no Docker needed)
+    Return ChatVertexAI (if credits available) or ChatGroq.
     """
-    if settings.inference_mode == "offline":
-        from langchain_community.llms import Ollama  # type: ignore[import]
+    # ── Priority 1: Google AI Studio (API Key) ──────────────────────────────
+    if settings.google_api_key:
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            return ChatGoogleGenerativeAI(
+                model=settings.gemini_model,
+                google_api_key=settings.google_api_key,
+                temperature=0.1
+            )
+        except Exception as e:
+            print(f"[SETTINGS] Google AI Studio load failed: {e}. Trying Vertex...")
 
-        return Ollama(
-            base_url=settings.ollama_base_url,
-            model=settings.ollama_orchestrator_model,
-        )
+    # ── Priority 2: Vertex AI (GCP Project) ──────────────────────────────────
+    if settings.google_cloud_project:
+        try:
+            from langchain_google_vertexai import ChatVertexAI
+            from google.oauth2 import service_account
+            
+            creds = None
+            if settings.google_cloud_key_path and os.path.exists(settings.google_cloud_key_path):
+                creds = service_account.Credentials.from_service_account_file(
+                    os.path.abspath(settings.google_cloud_key_path)
+                )
+            
+            return ChatVertexAI(
+                model_name=settings.gemini_model,
+                project=settings.google_cloud_project,
+                location=settings.google_cloud_location,
+                credentials=creds,
+                temperature=0.1
+            )
+        except Exception as e:
+            print(f"[SETTINGS] Vertex AI load failed: {e}. Falling back to Groq...")
 
-    # online (Groq)
-    from langchain_groq import ChatGroq  # type: ignore[import]
+    # ── Priority 2: Groq (API Key) ────────────────────────────────────────────
+    from langchain_groq import ChatGroq
 
     if not settings.groq_api_key:
-        raise RuntimeError(
-            "INFERENCE_MODE=online but GROQ_API_KEY is not set in .env. "
-            "Add your key or switch INFERENCE_MODE=offline."
-        )
+        raise RuntimeError("GROQ_API_KEY is not set.")
 
     selected_model = model or settings.groq_orchestrator_model
-    if is_deprecated_groq_model(selected_model):
-        print(
-            f"[{_ts()}] [SETTINGS] WARNING: creating ChatGroq with deprecated "
-            f"model={selected_model!r}",
-            flush=True,
-        )
-
-    return ChatGroq(api_key=settings.groq_api_key, model=selected_model)
+    return ChatGroq(model=selected_model, groq_api_key=settings.groq_api_key, temperature=0.1)

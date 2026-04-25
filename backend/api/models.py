@@ -45,6 +45,8 @@ class AnalyzeResponse(VigilensBaseModel):
     original_date: Optional[str] = None
     claimed_location: Optional[str] = None
     actual_location: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     key_flags: List[str] = []
     agents: List[AgentFindingResponse] = []
 

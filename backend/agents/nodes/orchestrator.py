@@ -5,6 +5,7 @@ Synthesises findings from all three agents into a final verdict using the LLM.
 LangSmith tracing is automatic when LANGSMITH_TRACING_V2=true.
 """
 
+import asyncio
 import json
 import time
 from dataclasses import asdict
@@ -17,11 +18,23 @@ from api.job_store import update_progress
 from config.settings import get_llm, settings
 
 ORCHESTRATOR_PROMPT = """
-You are the Vigilens Orchestrator. Three AI agents have analysed a disaster video.
+You are the Vigilens Orchestrator. Four AI agents have analysed a disaster video.
 Your job is to synthesise their findings into a final public verdict.
 
 AGENT RESULTS:
 {agent_results_json}
+
+CURRENT DATE: {current_date}
+
+INSTRUCTIONS:
+1. Compare the findings from all agents.
+2. IMPORTANT: The current year is {current_year}. Any dates in {current_year} are CURRENT, not "future" or "impossible".
+3. If Deepfake score is low (< 25%) and Context is consistent, verdict MUST be "real" even if Geolocation or Source failed.
+4. Only use "unverified" as a last resort if findings are truly contradictory or all major agents failed.
+5. If the video looks real but has a high AI score, look at the findings. If the findings say "looks natural/consistent", trust the findings over the raw score.
+6. Geolocation mismatches should be flagged as "misleading".
+7. Only flag "WAR/CONFLICT CONTENT" if the context analyst confirmed extreme violence (killing, bombing, shooting). Minor arguments or shouting are EXEMPTED.
+8. Provide a clear, authoritative summary for the public. If the verdict is "real", be reassuring and state clearly that no evidence of AI manipulation was found.
 
 Produce a verdict. Respond ONLY with valid JSON (no markdown):
 {{
@@ -50,22 +63,35 @@ async def orchestrator_node(state: AgentState) -> Dict:
     deepfake = state.get("deepfake_result")
     source = state.get("source_result")
     context = state.get("context_result")
+    geo = state.get("geolocation_result")
 
     agent_results = {
         "deepfake_detector": _finding_to_dict(deepfake),
         "source_hunter": _finding_to_dict(source),
         "context_analyser": _finding_to_dict(context),
+        "geolocation_hunter": _finding_to_dict(geo),
     }
 
-    prompt = ORCHESTRATOR_PROMPT.format(agent_results_json=json.dumps(agent_results, indent=2))
+    current_date = time.strftime("%Y-%m-%d")
+    current_year = current_date[:4]
+    prompt = ORCHESTRATOR_PROMPT.format(
+        agent_results_json=json.dumps(agent_results, indent=2),
+        current_date=current_date,
+        current_year=current_year
+    )
 
     try:
-        llm = get_llm()
-        if hasattr(llm, "invoke"):
-            response = llm.invoke(prompt)
-            raw = response.content if hasattr(response, "content") else str(response)
-        else:
-            raw = str(llm(prompt))
+        from langchain_google_vertexai import ChatVertexAI
+        llm = ChatVertexAI(
+            model_name=settings.gemini_model,
+            project=settings.google_cloud_project,
+            location=settings.google_cloud_location,
+            temperature=0.1
+        )
+        
+        from langchain_core.messages import HumanMessage
+        response = await asyncio.wait_for(llm.ainvoke([HumanMessage(content=prompt)]), timeout=45.0)
+        raw = response.content
 
         # Strip markdown fences if present — note: str.strip(chars) removes a SET
         # of characters, not a substring, so we must use split() instead.

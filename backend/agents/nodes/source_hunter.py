@@ -297,12 +297,19 @@ async def source_hunter_node(state: AgentState) -> AgentFinding:
     wayback_task = _wayback_check(video_url or "")
     platform_task = extract_platform_metadata(video_url or "")
 
-    google_result, tineye_result, bing_result, wayback_result, platform_meta = (
-        await asyncio.gather(
-            google_task, tineye_task, bing_task, wayback_task, platform_task,
-            return_exceptions=False,
+    try:
+        google_result, tineye_result, bing_result, wayback_result, platform_meta = (
+            await asyncio.wait_for(
+                asyncio.gather(
+                    google_task, tineye_task, bing_task, wayback_task, platform_task,
+                    return_exceptions=False,
+                ),
+                timeout=45.0
+            )
         )
-    )
+    except asyncio.TimeoutError:
+        print(f"[SourceHunter] Global timeout! Using empty fallbacks.")
+        google_result, tineye_result, bing_result, wayback_result, platform_meta = {}, {}, {}, {}, {}
 
     # EXIF is sync — run after async calls
     exif_result = _extract_exif(video_path or "")

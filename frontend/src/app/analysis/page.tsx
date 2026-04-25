@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { AgentPanel } from "@/components/analysis/AgentPanel";
 import { VerdictCard } from "@/components/analysis/VerdictCard";
+import { LocationMap } from "@/components/analysis/LocationMap";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { config } from "@/lib/config";
@@ -82,6 +83,20 @@ function AnalysisContent() {
             {result ? (
               <>
                 <VerdictCard result={result} />
+                {result.latitude && result.longitude && (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-secondary border-4 border-foreground bk-shadow-sm inline-block">
+                       <h3 className="text-xl font-black uppercase tracking-tighter leading-none">
+                         Geographical Verification
+                       </h3>
+                    </div>
+                    <LocationMap 
+                      latitude={result.latitude} 
+                      longitude={result.longitude} 
+                      label={result.actualLocation || 'Confirmed Location'} 
+                    />
+                  </div>
+                )}
                 <CommunityFeed />
               </>
             ) : isLoading ? (

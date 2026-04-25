@@ -181,7 +181,7 @@ async def run_analysis_task(
 
         # ── Build agent finding responses ─────────────────────────────────────
         agents = []
-        for finding_key in ["deepfake_result", "source_result", "context_result"]:
+        for finding_key in ["deepfake_result", "source_result", "context_result", "geolocation_result"]:
             finding = final_state.get(finding_key)
             print(
                 f"[{_ts()}] [JOB:{job_id[:8]}] {finding_key}: "
@@ -225,6 +225,8 @@ async def run_analysis_task(
             original_date=final_state.get("original_date"),
             claimed_location=final_state.get("claimed_location"),
             actual_location=final_state.get("actual_location"),
+            latitude=final_state.get("latitude"),
+            longitude=final_state.get("longitude"),
             key_flags=key_flags,
             agents=agents,
         )

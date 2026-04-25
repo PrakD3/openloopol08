@@ -8,19 +8,13 @@ Vigilens analyses disaster videos in real time — detecting deepfakes, tracing 
 
 ---
 
-## Choose Your Setup Path
+## Quick Start
 
-| | 🌐 Online Mode | 📦 Offline Mode |
-|---|---|---|
-| **Docker needed?** | ❌ No | ✅ Yes |
-| **API keys needed?** | ✅ Yes (free tier) | ❌ No |
-| **GPU needed?** | ❌ No | Recommended |
-| **Setup time** | ~5 min | ~20 min (first run) |
-| **Who it's for** | Demos, dev, hackathon | Air-gapped / production |
+Uses free-tier cloud APIs. Groq is the only **required** key — everything else degrades gracefully.
 
 ---
 
-## 🌐 Option 1: Online Mode (No Docker)
+## 🌐 Getting Started (Online Mode)
 
 Uses free-tier cloud APIs. Groq is the only **required** key — everything else degrades gracefully.
 
@@ -91,79 +85,7 @@ Get these — all have generous free tiers:
 
 ---
 
-## 📦 Option 2: Offline Mode (Docker)
-
-Everything runs locally. No internet after first pull. Requires Docker Desktop.
-
-### Prerequisites
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop) (running)
-- 16GB RAM minimum, 32GB recommended
-- NVIDIA GPU with 6GB+ VRAM recommended (CPU fallback is slow)
-
-### One-command start
-
-**Windows:**
-```bat
-scripts\start-offline.bat
-```
-
-**macOS / Linux:**
-```bash
-bash scripts/start-offline.sh
-```
-
-The script will:
-1. Check Docker is running
-2. Create `.env` files set to offline mode (no API keys needed)
-3. `docker compose up --build` — builds all images
-4. Wait for Ollama, then pull `gemma3:4b` (~4GB, one time only)
-5. Open `http://localhost:3000`
-
-### Manual start
-
-```bash
-# Start all containers
-docker compose up --build -d
-
-# Pull the Ollama model (first time only)
-docker exec openloop-ol08-ollama-1 ollama pull gemma3:4b
-
-# View logs
-docker compose logs -f
-
-# Stop everything
-docker compose down
-```
-
-### Fast Docker dev loop (no rebuild per code change)
-
-For hackathon iteration speed, use the dev override with bind mounts + hot reload:
-
-```bash
-# First run (build once)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
-
-# Later runs (no rebuild)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-```
-
-In this mode:
-- Frontend runs `next dev` with file watching
-- Backend runs `uvicorn --reload`
-- Most code edits reflect immediately without image rebuilds
-
-### Hybrid mode (recommended for hackathons)
-
-Run only heavy AI infra in Docker and keep app code local:
-
-```bash
-# Docker infra only (no frontend/backend images)
-docker compose -f docker-compose.infra.yml up --build -d
-
-# Then run app locally
-cd backend && uvicorn api.main:app --reload
-cd frontend && npm run dev
+## 🛠️ Project Structure
 ```
 
 Windows helper:
