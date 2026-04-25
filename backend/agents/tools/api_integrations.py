@@ -62,6 +62,22 @@ def extract_youtube_id(url: str) -> Optional[str]:
         return None
 
 
+def extract_twitter_id(url: str) -> Optional[str]:
+    """Extract Tweet ID from any Twitter/X URL format."""
+    try:
+        parsed = urlparse(url)
+        path = parsed.path.strip("/")
+        # format: /username/status/123456789
+        parts = path.split("/")
+        if "status" in parts:
+            idx = parts.index("status")
+            if len(parts) > idx + 1:
+                return parts[idx + 1].split("?")[0]
+        return None
+    except Exception:
+        return None
+
+
 # ── yt-dlp Metadata Extraction ────────────────────────────────────────────────
 
 async def _ytdlp_metadata(url: str) -> dict:
@@ -175,6 +191,55 @@ async def _youtube_api_metadata(video_id: str) -> dict:
         return {}
 
 
+# ── X (Twitter) API v2 (Requires Bearer Token) ────────────────────────────────
+
+TWITTER_API_URL = "https://api.twitter.com/2/tweets"
+
+async def _twitter_api_metadata(tweet_id: str) -> dict:
+    """
+    Fetch Tweet metadata via X API v2.
+    Requires X_BEARER_TOKEN.
+    """
+    if not settings.x_bearer_token or not tweet_id:
+        return {}
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{TWITTER_API_URL}/{tweet_id}",
+                params={
+                    "tweet.fields": "created_at,text,author_id,geo,public_metrics,lang",
+                    "expansions": "author_id,geo.place_id",
+                    "user.fields": "name,username,location,verified",
+                    "place.fields": "full_name,geo",
+                },
+                headers={"Authorization": f"Bearer {settings.x_bearer_token}"},
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            tweet = data.get("data", {})
+            includes = data.get("includes", {})
+            user = includes.get("users", [{}])[0]
+            place = includes.get("places", [{}])[0]
+
+            return {
+                "twitter_api": True,
+                "title": tweet.get("text", "")[:100],
+                "description": tweet.get("text"),
+                "published_at": tweet.get("created_at"),
+                "uploader": user.get("name"),
+                "channel": user.get("username"),
+                "location": place.get("full_name") or user.get("location"),
+                "view_count": tweet.get("public_metrics", {}).get("impression_count"),
+                "like_count": tweet.get("public_metrics", {}).get("like_count"),
+                "comment_count": tweet.get("public_metrics", {}).get("reply_count"),
+                "lang": tweet.get("lang"),
+            }
+    except Exception as e:
+        print(f"[APIIntegrations/TwitterAPI] Failed for {tweet_id}: {e}")
+        return {}
+
+
 # ── Main Entry Point ──────────────────────────────────────────────────────────
 
 async def extract_platform_metadata(url: str) -> dict:
@@ -204,8 +269,15 @@ async def extract_platform_metadata(url: str) -> dict:
         if video_id:
             youtube_api_meta = await _youtube_api_metadata(video_id)
 
-    # Merge: YouTube API data enriches yt-dlp data
-    merged = {**ytdlp_meta, **youtube_api_meta}
+    # If Twitter and Bearer Token available, enrich with API data
+    twitter_api_meta = {}
+    if platform == "twitter" and settings.x_bearer_token:
+        tweet_id = extract_twitter_id(url)
+        if tweet_id:
+            twitter_api_meta = await _twitter_api_metadata(tweet_id)
+
+    # Merge: API data enriches yt-dlp data
+    merged = {**ytdlp_meta, **youtube_api_meta, **twitter_api_meta}
     merged["platform"] = platform
     merged["original_url"] = url
 
