@@ -95,4 +95,8 @@ Vigilens uses a LangGraph-powered agentic pipeline:
 
 ## License
 
+<<<<<<< ours
 MIT — see [LICENSE](LICENSE)
+=======
+MIT — see [LICENSE](LICENSE)
+>>>>>>> theirs

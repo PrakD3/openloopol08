@@ -7,6 +7,9 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # ── Mode ──────────────────────────────────────────────────────────────────
+    inference_mode: Literal["online", "offline"] = "online"
+    app_mode: Literal["demo", "real"] = "demo"
 
     # ── Groq (LLM + Whisper) ──────────────────────────────────────────────────
     groq_api_key: str = ""
@@ -19,18 +22,27 @@ class Settings(BaseSettings):
     whisper_use_groq: bool = True
     groq_whisper_model: str = "whisper-large-v3-turbo"
 
+    # ── Offline LLM (Ollama) ──────────────────────────────────────────────────
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_orchestrator_model: str = "llama3.3"
+    ollama_vision_model: str = "llava:13b"
+
     # ── LangSmith ─────────────────────────────────────────────────────────────
     langsmith_api_key: str = ""
     langsmith_project: str = "vigilens"
     langsmith_tracing_v2: str = "true"
 
-    deepfake_hive_api_key: str = ""
+    # ── Deepfake detection ────────────────────────────────────────────────────
+    hive_api_key: str = ""
+    deepsafe_url: str = "http://localhost:8001"
 
-    # ── Whisper (API fallback) ─────────────────────────────────────────────
-    # whisper_use_groq=true takes priority.
+    # ── Whisper (legacy / local fallback) ─────────────────────────────────────
+    # whisper_use_groq=true takes priority over both of these.
     # whisper_use_api=true + openai_api_key → OpenAI Whisper API
+    # otherwise                              → local openai-whisper package
     whisper_use_api: bool = True
     openai_api_key: str = ""
+    whisper_model_size: str = "medium"
 
     # ── Source hunting ────────────────────────────────────────────────────────
     google_vision_api_key: str = ""
@@ -79,7 +91,8 @@ def is_deprecated_groq_model(model_name: Optional[str]) -> bool:
 def log_runtime_configuration() -> None:
     groq_key_present = "yes" if settings.groq_api_key else "no"
     print(
-        f"[{_ts()}] [SETTINGS] "
+        f"[{_ts()}] [SETTINGS] inference_mode={settings.inference_mode!r} "
+        f"app_mode={settings.app_mode!r} "
         f"groq_key={groq_key_present} "
         f"orchestrator_model={settings.groq_orchestrator_model!r} "
         f"vision_model={settings.groq_vision_model!r} "
@@ -96,13 +109,27 @@ def log_runtime_configuration() -> None:
 
 def get_llm(model: Optional[str] = None):
     """
-    Return the appropriate LLM (Groq Only).
+    Return the appropriate LLM based on INFERENCE_MODE.
+
+    Priority:
+      offline → Ollama (local Docker container)
+      online  → Groq ChatGroq (cloud, no Docker needed)
     """
+    if settings.inference_mode == "offline":
+        from langchain_community.llms import Ollama  # type: ignore[import]
+
+        return Ollama(
+            base_url=settings.ollama_base_url,
+            model=settings.ollama_orchestrator_model,
+        )
+
+    # online (Groq)
     from langchain_groq import ChatGroq  # type: ignore[import]
 
     if not settings.groq_api_key:
         raise RuntimeError(
-            "GROQ_API_KEY is not set in .env. Vigilens requires Groq for synthesis."
+            "INFERENCE_MODE=online but GROQ_API_KEY is not set in .env. "
+            "Add your key or switch INFERENCE_MODE=offline."
         )
 
     selected_model = model or settings.groq_orchestrator_model
