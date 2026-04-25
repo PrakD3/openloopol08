@@ -4,12 +4,12 @@ from typing import Any, Dict
 from langgraph.graph import END, StateGraph
 from langsmith import traceable
 
-from .nodes.context_analyser import context_analyser_node
-from .nodes.deepfake_detector import deepfake_detector_node
-from .nodes.orchestrator import orchestrator_node
-from .nodes.source_hunter import source_hunter_node
-from .state import AgentState
-from .tools.ffmpeg_tools import extract_audio, extract_keyframes
+from agents.nodes.context_analyser import context_analyser_node
+from agents.nodes.deepfake_detector import deepfake_detector_node
+from agents.nodes.orchestrator import orchestrator_node
+from agents.nodes.source_hunter import source_hunter_node
+from agents.state import AgentState
+from agents.tools.ffmpeg_tools import extract_audio, extract_keyframes
 
 
 def create_vigilens_graph() -> Any:

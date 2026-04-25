@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException
 
-from ..models import JobStatusResponse
+from api.models import JobStatusResponse
 
 router = APIRouter()
 

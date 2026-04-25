@@ -7,10 +7,10 @@ from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException
 
-from ...agents.graph import graph
-from ...agents.state import AgentState
-from ...config.settings import settings
-from ..models import AgentFindingResponse, AnalyzeRequest, AnalyzeResponse
+from agents.graph import graph
+from agents.state import AgentState
+from config.settings import settings
+from api.models import AgentFindingResponse, AnalyzeRequest, AnalyzeResponse
 
 router = APIRouter()
 

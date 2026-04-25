@@ -5,10 +5,10 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from ..config.settings import settings
-from .routes.analyze import router as analyze_router
-from .routes.health import router as health_router
-from .routes.status import router as status_router
+from config.settings import settings
+from api.routes.analyze import router as analyze_router
+from api.routes.health import router as health_router
+from api.routes.status import router as status_router
 
 # Enable LangSmith tracing if configured
 if settings.langsmith_api_key:

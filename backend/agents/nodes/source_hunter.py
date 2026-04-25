@@ -24,8 +24,8 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 from langsmith import traceable
 
-from ...config.settings import settings
-from ..state import AgentFinding, AgentState
+from config.settings import settings
+from agents.state import AgentFinding, AgentState
 
 
 @traceable(name="source_hunter")
