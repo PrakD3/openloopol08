@@ -12,11 +12,12 @@ async def poll_social_media():
     """
     print("[Watcher] Social Media Monitoring started...")
     
-    # Example monitored channels/search terms
-    # In production, these would be in settings/database
+    # Targets across different platforms
     monitored_targets = [
-        "https://www.youtube.com/@Guardian/videos", # Example news channel
-        # Add more here or load from settings.monitor_targets
+        "https://www.youtube.com/@Guardian/videos",      # YouTube
+        "https://x.com/BBCBreaking",                      # X (Twitter)
+        "https://www.instagram.com/aljazeeraenglish/reels/", # Instagram Reels
+        "https://www.tiktok.com/@ndtv",                   # TikTok
     ]
 
     while True:
