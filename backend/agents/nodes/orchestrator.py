@@ -12,8 +12,9 @@ from typing import Any, Dict
 
 from langsmith import traceable
 
-from config.settings import get_llm, settings
 from agents.state import AgentFinding, AgentState
+from api.job_store import update_progress
+from config.settings import get_llm, settings
 
 ORCHESTRATOR_PROMPT = """
 You are the Vigilens Orchestrator. Three AI agents have analysed a disaster video.
@@ -40,8 +41,8 @@ Produce a verdict. Respond ONLY with valid JSON (no markdown):
 @traceable(name="orchestrator")
 async def orchestrator_node(state: AgentState) -> Dict:
     """Compile final verdict from all agent findings."""
-    if settings.app_mode == "demo":
-        return _demo_verdict(state)
+    job_id = state.get("job_id", "unknown")
+    update_progress(job_id, 0.85, "orchestrator_starting")
 
     deepfake = state.get("deepfake_result")
     source = state.get("source_result")
@@ -63,8 +64,13 @@ async def orchestrator_node(state: AgentState) -> Dict:
         else:
             raw = str(llm(prompt))
 
-        # Strip markdown fences if present
-        raw = raw.strip().strip("```json").strip("```").strip()
+        # Strip markdown fences if present — note: str.strip(chars) removes a SET
+        # of characters, not a substring, so we must use split() instead.
+        raw = raw.strip()
+        if "```json" in raw:
+            raw = raw.split("```json")[1].split("```")[0].strip()
+        elif "```" in raw:
+            raw = raw.split("```")[1].split("```")[0].strip()
         verdict_data = json.loads(raw)
     except Exception as exc:
         verdict_data = {
@@ -79,11 +85,24 @@ async def orchestrator_node(state: AgentState) -> Dict:
             "key_flags": ["LLM error — manual review required"],
         }
 
-    return {
+    # Normalise the verdict
+    VALID_VERDICTS = {"real", "misleading", "ai-generated", "unverified"}
+    raw_verdict = str(verdict_data.get("verdict", "unverified")).lower().strip().strip(".")
+    if raw_verdict not in VALID_VERDICTS:
+        if "mislead" in raw_verdict:
+            raw_verdict = "misleading"
+        elif any(k in raw_verdict for k in ("ai", "generat", "fake", "deepfake", "synthetic")):
+            raw_verdict = "ai-generated"
+        elif any(k in raw_verdict for k in ("real", "authentic", "genuine", "legit")):
+            raw_verdict = "real"
+        else:
+            raw_verdict = "unverified"
+
+    result = {
         **state,
-        "verdict": verdict_data.get("verdict", "unverified"),
-        "credibility_score": int(verdict_data.get("credibility_score", 0)),
-        "panic_index": int(verdict_data.get("panic_index", 5)),
+        "verdict": raw_verdict,
+        "credibility_score": max(0, min(100, int(verdict_data.get("credibility_score", 0)))),
+        "panic_index": max(0, min(10, int(verdict_data.get("panic_index", 5)))),
         "summary": verdict_data.get("summary", ""),
         "source_origin": verdict_data.get("source_origin"),
         "original_date": verdict_data.get("original_date"),
@@ -91,6 +110,8 @@ async def orchestrator_node(state: AgentState) -> Dict:
         "actual_location": verdict_data.get("actual_location"),
         "key_flags": verdict_data.get("key_flags", []),
     }
+    update_progress(job_id, 0.90, "orchestrator_done")
+    return result
 
 
 def _finding_to_dict(finding: Any) -> Dict:
@@ -99,18 +120,3 @@ def _finding_to_dict(finding: Any) -> Dict:
     if hasattr(finding, "__dataclass_fields__"):
         return asdict(finding)
     return {}
-
-
-def _demo_verdict(state: AgentState) -> Dict:
-    return {
-        **state,
-        "verdict": "unverified",
-        "credibility_score": 50,
-        "panic_index": 5,
-        "summary": "Demo mode: orchestrator verdict simulated.",
-        "source_origin": None,
-        "original_date": None,
-        "claimed_location": None,
-        "actual_location": None,
-        "key_flags": ["Demo mode active"],
-    }

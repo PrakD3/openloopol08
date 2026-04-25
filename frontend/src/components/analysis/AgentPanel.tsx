@@ -52,7 +52,7 @@ export function AgentPanel({ agents }: AgentPanelProps) {
               </div>
               {agent.score !== null && (
                 <Badge variant={agent.score > 50 ? 'destructive' : 'real'} className="border-2">
-                  {agent.agentId === 'deepfake-detector'
+                  {agent.agentId === 'deepfake-detector' || agent.agentId === 'deepfake_detector'
                     ? `${agent.score}% FAKE`
                     : `${agent.score}% AUTHENTIC`}
                 </Badge>

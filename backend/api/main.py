@@ -1,15 +1,32 @@
 """Vigilens FastAPI application entry point."""
 
 import os
+import sys
+import asyncio
+
+# CRITICAL WINDOWS FIX: Force ProactorEventLoop to support subprocesses (FFmpeg/yt-dlp)
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config.settings import settings
-from api.routes.analyze import router as analyze_router
-from api.routes.health import router as health_router
-from api.routes.status import router as status_router
-from api.routes.register import router as register_router
+try:
+    from api.routes.analyze import router as analyze_router
+    from api.routes.health import router as health_router
+    from api.routes.status import router as status_router
+    from api.routes.register import router as register_router
+except Exception as e:
+    print(f"\n[CRITICAL ERROR] Failed to import routers: {e}", flush=True)
+    import traceback
+    traceback.print_exc()
+    # Dummy router to allow startup
+    from fastapi import APIRouter
+    analyze_router = APIRouter()
+    health_router = APIRouter()
+    status_router = APIRouter()
+    register_router = APIRouter()
 
 # Enable LangSmith tracing if configured
 if settings.langsmith_api_key:
@@ -23,6 +40,13 @@ app = FastAPI(
     version="0.1.0",
 )
 
+@app.middleware("http")
+async def log_requests(request, call_next):
+    print(f"[BACKEND] Incoming {request.method} request to {request.url.path}", flush=True)
+    response = await call_next(request)
+    print(f"[BACKEND] Finished {request.method} request to {request.url.path} with status {response.status_code}", flush=True)
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "https://vigilens.vercel.app"],
@@ -35,3 +59,5 @@ app.include_router(health_router)
 app.include_router(analyze_router)
 app.include_router(status_router)
 app.include_router(register_router)
+
+

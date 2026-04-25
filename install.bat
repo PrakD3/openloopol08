@@ -127,9 +127,9 @@ if !ERRORLEVEL! NEQ 0 (
     exit /b !ERRORLEVEL!
 )
 
-echo   - Upgrading core build tools (fixing pkg_resources error)...
+echo   - Upgrading core build tools...
 call .venv\Scripts\activate && python -m pip install --upgrade pip
-call .venv\Scripts\activate && pip install "setuptools==69.5.1" wheel setuptools-rust
+call .venv\Scripts\activate && pip install wheel setuptools setuptools-rust
 if !ERRORLEVEL! NEQ 0 (
     echo ERROR: Failed to upgrade build tools.
     pause
@@ -146,6 +146,7 @@ if !ERRORLEVEL! NEQ 0 (
 
 echo   - Installing remaining backend dependencies...
 call .venv\Scripts\activate && pip install -r requirements.txt
+call .venv\Scripts\activate && pip install pydantic-settings
 if !ERRORLEVEL! NEQ 0 (
     echo ERROR: Backend dependencies installation failed.
     pause

@@ -5,13 +5,27 @@ from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
-class AnalyzeRequest(BaseModel):
+def to_camel(string: str) -> str:
+    """Convert snake_case to camelCase."""
+    components = string.split("_")
+    return components[0] + "".join(x.title() for x in components[1:])
+
+
+class VigilensBaseModel(BaseModel):
+    """Base model with camelCase aliases."""
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+        from_attributes = True
+
+
+class AnalyzeRequest(VigilensBaseModel):
     video_url: Optional[str] = None
     video_path: Optional[str] = None
     claimed_location: Optional[str] = None
 
 
-class AgentFindingResponse(BaseModel):
+class AgentFindingResponse(VigilensBaseModel):
     agent_id: str
     agent_name: str
     status: Literal["idle", "running", "done", "error"]
@@ -21,7 +35,7 @@ class AgentFindingResponse(BaseModel):
     duration_ms: Optional[int] = None
 
 
-class AnalyzeResponse(BaseModel):
+class AnalyzeResponse(VigilensBaseModel):
     job_id: str
     verdict: Literal["real", "misleading", "ai-generated", "unverified"]
     credibility_score: int = Field(ge=0, le=100)
@@ -35,7 +49,7 @@ class AnalyzeResponse(BaseModel):
     agents: List[AgentFindingResponse] = []
 
 
-class JobStatusResponse(BaseModel):
+class JobStatusResponse(VigilensBaseModel):
     job_id: str
     status: Literal["queued", "processing", "done", "error"]
     progress: int = Field(ge=0, le=100)
@@ -43,7 +57,7 @@ class JobStatusResponse(BaseModel):
     error: Optional[str] = None
 
 
-class HealthResponse(BaseModel):
+class HealthResponse(VigilensBaseModel):
     status: str
     mode: str
     app_mode: str

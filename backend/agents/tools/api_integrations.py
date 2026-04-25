@@ -101,6 +101,10 @@ async def _ytdlp_metadata(url: str) -> dict:
                     "--no-download",        # Do NOT download the video
                     "--no-warnings",
                     "--skip-download",
+                    "--no-playlist",        # FAST
+                    "--flat-playlist",      # FAST
+                    "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "--no-check-certificates",
                     url,
                 ],
                 capture_output=True,
@@ -108,9 +112,21 @@ async def _ytdlp_metadata(url: str) -> dict:
                 timeout=30,
             )
         )
-        if result.returncode != 0 or not result.stdout:
+        if result.returncode != 0:
+            err_msg = result.stderr.strip()
+            print(f"[API] [FAILURE] yt-dlp failed for: {url[:50]}...", flush=True)
+            print(f"[API] [REASON] {err_msg if err_msg else 'Unknown error'}", flush=True)
+            # If it's a 403, we know it's a bot block
+            if "403" in err_msg:
+                print("[API] [TIP] This platform is blocking automated requests. Try a different URL or check proxy settings.", flush=True)
             return {}
+        
+        if not result.stdout:
+            print(f"[API] [FAILURE] yt-dlp returned success but empty output.", flush=True)
+            return {}
+            
         data = json.loads(result.stdout.strip().split("\n")[0])  # First video only
+        print(f"[API] [SUCCESS] Metadata extracted: {data.get('title', 'No Title')[:50]}...")
         return {
             "platform": data.get("extractor_key", "unknown").lower(),
             "video_id": data.get("id"),

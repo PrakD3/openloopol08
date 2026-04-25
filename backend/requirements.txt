@@ -18,22 +18,15 @@ opencv-python-headless==4.10.0.82
 imagehash==4.3.1
 Pillow==10.4.0
 
-# Audio
+# API Clients
 openai==1.35.0
-openai-whisper @ git+https://github.com/openai/whisper.git
-
-# OCR
-easyocr==1.7.1
-
-# HTTP
 httpx==0.27.0
 aiofiles==23.2.1
 
-# Platform metadata / notifications
+# Platform metadata
 yt-dlp>=2024.1.0
 
 # Dev
 pytest==8.2.0
 pytest-asyncio==0.23.0
 ruff==0.5.0
-mypy==1.10.0

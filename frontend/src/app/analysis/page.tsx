@@ -1,28 +1,44 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
-import { Loader2, AlertTriangle } from 'lucide-react';
-import { AgentPanel } from '@/components/analysis/AgentPanel';
-import { VerdictCard } from '@/components/analysis/VerdictCard';
-import { CommunityFeed } from '@/components/community/CommunityFeed';
-import { useAnalysis } from '@/hooks/useAnalysis';
-import { Suspense } from 'react';
+import { useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { useTranslation } from "react-i18next";
+import { Loader2, AlertTriangle } from "lucide-react";
+import { AgentPanel } from "@/components/analysis/AgentPanel";
+import { VerdictCard } from "@/components/analysis/VerdictCard";
+import { CommunityFeed } from "@/components/community/CommunityFeed";
+import { useAnalysis } from "@/hooks/useAnalysis";
+import { config } from "@/lib/config";
+import { Suspense } from "react";
 
 function AnalysisContent() {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
-  const videoUrl = searchParams.get('url') ?? '';
-  const isDemo = searchParams.get('demo') !== 'false';
+  const videoUrl = searchParams.get("url") ?? "";
+  const isDemo = false;
 
   const { result, isLoading, agentProgress, error, analyze } = useAnalysis();
+  const displayedAgents = agentProgress.length > 0 ? agentProgress : result?.agents ?? [];
+
+  // Guard against React StrictMode's intentional double-mount in development,
+  // which would fire this effect twice and create two backend jobs for one submit.
+  const analyzedUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (videoUrl) {
+    if (videoUrl && analyzedUrlRef.current !== videoUrl) {
+      analyzedUrlRef.current = videoUrl;
       analyze(videoUrl, isDemo);
     }
   }, [videoUrl, isDemo, analyze]);
+
+  // When analysis fails, clear the ref so the user can retry the same URL.
+  // Without this, the guard above would permanently block re-analysis of a
+  // URL that previously errored.
+  useEffect(() => {
+    if (error) {
+      analyzedUrlRef.current = null;
+    }
+  }, [error]);
 
   return (
     <div className="min-h-screen py-12 px-4 bg-background bk-noise">
@@ -30,7 +46,7 @@ function AnalysisContent() {
         <div className="flex flex-col md:flex-row items-start md:items-end gap-4 mb-12">
           <div className="p-3 bg-primary border-4 border-foreground bk-shadow-md">
             <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none">
-              {t('analysis.title')}
+              {t("analysis.title")}
             </h1>
           </div>
           {videoUrl && (
@@ -49,12 +65,14 @@ function AnalysisContent() {
 
         <div className="grid lg:grid-cols-12 gap-8">
           <div className="lg:col-span-4">
-            {isLoading || agentProgress.length > 0 ? (
-              <AgentPanel agents={agentProgress} />
+            {isLoading || displayedAgents.length > 0 ? (
+              <AgentPanel agents={displayedAgents} />
             ) : !result ? (
               <div className="flex items-center gap-4 p-6 border-4 border-foreground bg-muted/20 bk-shadow-sm">
                 <Loader2 className="h-8 w-8 animate-spin text-foreground" />
-                <span className="font-black uppercase tracking-widest">Initialising agents...</span>
+                <span className="font-black uppercase tracking-widest">
+                  Initialising agents...
+                </span>
               </div>
             ) : null}
           </div>
@@ -72,13 +90,19 @@ function AnalysisContent() {
                   <Loader2 className="h-24 w-24 animate-spin text-foreground border-4 border-foreground p-4 bg-background bk-shadow-md" />
                 </div>
                 <div className="text-center space-y-2">
-                  <p className="text-3xl font-black uppercase tracking-tighter italic">Running AI pipeline</p>
-                  <p className="text-sm font-bold text-muted-foreground uppercase tracking-[0.3em]">Cross-verifying keyframes...</p>
+                  <p className="text-3xl font-black uppercase tracking-tighter italic">
+                    Running AI pipeline
+                  </p>
+                  <p className="text-sm font-bold text-muted-foreground uppercase tracking-[0.3em]">
+                    Cross-verifying keyframes...
+                  </p>
                 </div>
               </div>
             ) : (
               <div className="h-[500px] border-4 border-foreground bg-muted/10 flex items-center justify-center">
-                <p className="font-black uppercase tracking-widest opacity-20 text-4xl -rotate-12">Waiting for input</p>
+                <p className="font-black uppercase tracking-widest opacity-20 text-4xl -rotate-12">
+                  Waiting for input
+                </p>
               </div>
             )}
           </div>
@@ -90,11 +114,13 @@ function AnalysisContent() {
 
 export default function AnalysisPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-background bk-noise">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background bk-noise">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      }
+    >
       <AnalysisContent />
     </Suspense>
   );

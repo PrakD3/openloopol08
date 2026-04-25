@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { DEMO_VIDEOS, MOCK_INCIDENTS } from '@/lib/demoData';
 import { useMode } from '@/hooks/useMode';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -17,12 +16,10 @@ export default function HomePage() {
   const { isDemo } = useMode();
   const router = useRouter();
   const [videoUrl, setVideoUrl] = useState('');
-  const [selectedDemo, setSelectedDemo] = useState(DEMO_VIDEOS[0].url);
 
   const handleAnalyse = () => {
-    const url = isDemo ? selectedDemo : videoUrl;
-    if (!url) return;
-    router.push(`/analysis?url=${encodeURIComponent(url)}&demo=${isDemo}`);
+    if (!videoUrl) return;
+    router.push(`/analysis?url=${encodeURIComponent(videoUrl)}`);
   };
 
   return (
@@ -44,37 +41,15 @@ export default function HomePage() {
 
           {/* Video Submission */}
           <div className="max-w-2xl mx-auto mt-12 bg-background border-4 border-foreground p-8 bk-shadow-lg">
-            {isDemo ? (
-              <div className="space-y-4">
-                <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">Select a demo video to analyse:</p>
-                <div className="grid gap-3">
-                  {DEMO_VIDEOS.map((video) => (
-                    <button
-                      key={video.id}
-                      onClick={() => setSelectedDemo(video.url)}
-                      className={cn(
-                        "text-left p-4 border-3 transition-all font-bold",
-                        selectedDemo === video.url
-                          ? "bg-accent border-foreground translate-x-[4px] translate-y-[4px]"
-                          : "bg-background border-foreground/30 hover:border-foreground hover:bg-muted"
-                      )}
-                    >
-                      {video.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-4">
-                <Input
-                  type="url"
-                  placeholder={t('home.submitPlaceholder')}
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  className="flex-1 text-lg h-14"
-                />
-              </div>
-            )}
+            <div className="flex gap-4">
+              <Input
+                type="url"
+                placeholder={t('home.submitPlaceholder')}
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                className="flex-1 text-lg h-14"
+              />
+            </div>
             <Button onClick={handleAnalyse} size="xl" variant="default" className="w-full mt-6 text-xl">
               {t('home.analyseButton')}
               <ArrowRight className="ml-2 h-6 w-6" />
@@ -106,66 +81,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Active Incidents Preview */}
-      <section className="py-24 px-4 bg-clash-4/20 border-y-6 border-foreground bk-diagonal-lines">
-        <div className="mx-auto max-w-6xl">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-12 gap-4">
-            <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter">Active Incidents</h2>
-            <Button variant="accent" size="lg" asChild className="bk-shadow-md">
-              <a href="/incidents">View All <ArrowRight className="ml-2 h-5 w-5" /></a>
-            </Button>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {MOCK_INCIDENTS.map((incident) => (
-              <Card key={incident.id} className="bk-hover border-4">
-                <CardHeader className="pb-4 bg-muted/30">
-                  <div className="flex items-center justify-between mb-4">
-                    <Badge variant={incident.verdict as 'real' | 'misleading' | 'unverified'} className="border-2">
-                      {incident.verdict.toUpperCase()}
-                    </Badge>
-                    <span className="text-xs font-black uppercase tracking-tighter">{incident.date}</span>
-                  </div>
-                  <CardTitle className="text-lg font-black leading-tight">{incident.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">{incident.location}</p>
-                  <div className="mt-6">
-                    <div className="flex justify-between items-end mb-2">
-                      <span className="text-xs font-black uppercase">Misinfo Rate</span>
-                      <span className="text-lg font-black">{incident.misinfoRate}%</span>
-                    </div>
-                    <div className="h-6 bg-background border-3 border-foreground overflow-hidden bk-shadow-sm">
-                      <div
-                        className="h-full bg-destructive border-r-3 border-foreground"
-                        style={{ width: `${incident.misinfoRate}%` }}
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Stats */}
-      <section className="py-24 px-4 bg-background">
-        <div className="mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            {[
-              { value: '2,847', label: 'Videos Analysed', color: 'text-primary' },
-              { value: '61%', label: 'Misinformation Rate', color: 'text-clash-1' },
-              { value: '94%', label: 'Detection Accuracy', color: 'text-accent' },
-              { value: '< 30s', label: 'Analysis Time', color: 'text-secondary' },
-            ].map((stat) => (
-              <div key={stat.label} className="p-8 border-4 border-foreground bg-background bk-shadow-md text-center space-y-2">
-                <p className={cn("text-5xl font-black", stat.color)}>{stat.value}</p>
-                <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
