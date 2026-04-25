@@ -7,7 +7,7 @@ from typing_extensions import TypedDict
 @dataclass
 class AgentFinding:
     agent_id: str
-    agent_name: str
+    agent_name: str = ""
     status: Literal["idle", "running", "done", "error"] = "idle"
     score: Optional[float] = None
     findings: List[str] = field(default_factory=list)
