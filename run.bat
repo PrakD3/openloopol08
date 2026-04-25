@@ -10,11 +10,11 @@ set "PATH=%PATH%;%CD%\tools"
 
 :: Start Backend
 echo Starting Backend (FastAPI)...
-start "Gaand Chal Raha hai" cmd /k "cd backend && call .venv\Scripts\activate && python -m uvicorn api.main:app --reload --port 8000"
+start "Backend" cmd /k "cd backend && python -m uvicorn api.main:app --reload --port 8000"
 
 :: Start Frontend
 echo Starting Frontend (Next.js)...
-start "Samne app ho" cmd /k "cd frontend && pnpm dev"
+start "Frontend" cmd /k "cd frontend && npm run dev"
 
 echo.
 echo Both processes have been started in separate windows.
