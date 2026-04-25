@@ -3,13 +3,14 @@
 import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { AgentPanel } from '@/components/analysis/AgentPanel';
 import { VerdictCard } from '@/components/analysis/VerdictCard';
 import { CommunityFeed } from '@/components/community/CommunityFeed';
 import { useAnalysis } from '@/hooks/useAnalysis';
+import { Suspense } from 'react';
 
-export default function AnalysisPage() {
+function AnalysisContent() {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
   const videoUrl = searchParams.get('url') ?? '';
@@ -84,5 +85,17 @@ export default function AnalysisPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AnalysisPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background bk-noise">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    }>
+      <AnalysisContent />
+    </Suspense>
   );
 }

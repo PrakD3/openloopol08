@@ -96,7 +96,7 @@ export function VerdictCard({ result }: VerdictCardProps) {
                 <item.icon className="h-3 w-3" /> {item.label}
               </p>
               {item.link ? (
-                <a href={item.value} target="_blank" rel="noopener noreferrer" className="text-sm font-black uppercase underline decoration-2 underline-offset-4 hover:text-primary truncate block">
+                <a href={item.value ?? undefined} target="_blank" rel="noopener noreferrer" className="text-sm font-black uppercase underline decoration-2 underline-offset-4 hover:text-primary truncate block">
                   {item.value}
                 </a>
               ) : (

@@ -20,6 +20,7 @@ Pillow==10.4.0
 
 # Audio
 openai==1.35.0
+openai-whisper @ git+https://github.com/openai/whisper.git
 
 # OCR
 easyocr==1.7.1
