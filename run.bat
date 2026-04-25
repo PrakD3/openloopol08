@@ -10,7 +10,7 @@ set "PATH=%PATH%;%CD%\tools"
 
 :: Start Backend
 echo Starting Backend (FastAPI)...
-start "Gaand Chal Raha hai" cmd /k "cd backend && if exist .venv (call .venv\Scripts\activate) else (echo Virtual environment not found. Please run install.bat first.) && uvicorn api.main:app --reload --port 8000"
+start "Gaand Chal Raha hai" cmd /k "cd backend && call .venv\Scripts\activate && python -m uvicorn api.main:app --reload --port 8000"
 
 :: Start Frontend
 echo Starting Frontend (Next.js)...
