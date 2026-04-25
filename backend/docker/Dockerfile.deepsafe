@@ -16,7 +16,13 @@ WORKDIR /app/deepsafe
 RUN pip install --no-cache-dir -r requirements.txt 2>/dev/null || true
 RUN pip install --no-cache-dir -r api/requirements.txt 2>/dev/null || true
 
+# Copy our minimal config (no model containers needed — we fall back to Hive AI)
+COPY deepsafe_config.json /app/deepsafe/config/deepsafe_config.json
+
 WORKDIR /app/deepsafe/api
+
+# Tell DeepSafe where the config lives
+ENV DEEPSAFE_CONFIG_FILE_PATH=/app/deepsafe/config/deepsafe_config.json
 ENV PORT=8001
 EXPOSE 8001
 

@@ -1,0 +1,22 @@
+{
+  "api_url": "http://deepsafe:8001",
+  "media_types": {
+    "image": {
+      "model_endpoints": {},
+      "health_endpoints": {},
+      "supported_extensions": ["*.jpg", "*.jpeg", "*.png", "*.webp"]
+    },
+    "video": {
+      "model_endpoints": {},
+      "health_endpoints": {},
+      "supported_extensions": ["*.mp4", "*.avi", "*.mov", "*.mkv"]
+    }
+  },
+  "default_output_dir_base": "./deepsafe_test_results",
+  "default_threshold": 0.5,
+  "default_ensemble_method": "voting",
+  "default_api_timeout_seconds": 1200,
+  "default_model_timeout_seconds_video": 1800,
+  "memory_optimization": true,
+  "default_max_workers_batch": 1
+}
