@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     google_vision_api_key: str = ""
     tineye_api_key: str = ""
     youtube_api_key: str = ""
+    x_bearer_token: str = ""
     bing_search_api_key: str = ""
 
     # Context analyser
