@@ -255,7 +255,7 @@ Based only on the above, answer in JSON (no markdown):
 {{
   "claimed_location": "<location name from video or metadata>",
   "language_detected": "<primary language spoken>",
-  "event_type": "flood | earthquake | fire | conflict | war | attack | unknown",
+  "event_type": "flood | earthquake | fire | tsunami | cyclone | tornado | volcano | missile | airstrike | explosion | attack | shooting | chemical | conflict | unknown",
   "is_war_or_conflict": true | false,
   "gdacs_match_found": true | false,
   "gdacs_match_name": "<event name if matched>",
