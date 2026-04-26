@@ -1,6 +1,6 @@
 import asyncio
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from langgraph.graph import END, StateGraph
@@ -20,7 +20,7 @@ from api.job_store import update_progress
 
 def _ts() -> str:
     """Return a compact UTC timestamp string for log lines."""
-    return datetime.now(UTC).strftime("%H:%M:%S.%f")[:-3]
+    return datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
 
 
 def _summarise_finding(label: str, finding: Any) -> None:
@@ -43,6 +43,15 @@ def _summarise_finding(label: str, finding: Any) -> None:
     )
 
 
+def should_analyse(state: AgentState) -> str:
+    """Conditional edge logic: skip analysis if preprocessing failed."""
+    err = state.get("error")
+    print(f"[{_ts()}] [GRAPH] should_analyse check: error={err!r}", flush=True)
+    if err:
+        return "orchestrator"
+    return "parallel_analysis"
+
+
 def create_vigilens_graph() -> Any:
     """
     Vigilens LangGraph pipeline.
@@ -61,7 +70,7 @@ def create_vigilens_graph() -> Any:
     workflow.add_node("notification", notification_node)
 
     workflow.set_entry_point("preprocess")
-    workflow.add_edge("preprocess", "parallel_analysis")
+    workflow.add_conditional_edges("preprocess", should_analyse)
     workflow.add_edge("parallel_analysis", "orchestrator")
     workflow.add_edge("orchestrator", "notification")
     workflow.add_edge("notification", END)
@@ -133,7 +142,18 @@ async def preprocess_node(state: AgentState) -> dict:
     )
     update_progress(job_id, 0.30, "preprocess_done")
 
-    return {**state, "keyframes": frames, "audio_path": audio}
+    # If keyframes failed, we can't do meaningful visual analysis (DeepFake/Source/Geo)
+    # Mark as terminal error to trigger "Video Not Found" in orchestrator
+    if not frames:
+        print(
+            f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] !! TERMINAL ERROR: No keyframes extracted. "
+            f"Setting error flag.",
+            flush=True,
+        )
+        return {**state, "keyframes": [], "audio_path": audio, "error": "Video not found"}
+
+    print(f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] Preprocess success: {len(frames)} frames", flush=True)
+    return {**state, "keyframes": frames, "audio_path": audio, "error": None}
 
 
 @traceable(name="parallel_analysis")

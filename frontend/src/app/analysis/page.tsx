@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, ArrowRight, Shield } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { AgentPanel } from "@/components/analysis/AgentPanel";
 import { VerdictCard } from "@/components/analysis/VerdictCard";
 import { LocationMap } from "@/components/analysis/LocationMap";
@@ -15,11 +17,19 @@ import { Suspense } from "react";
 function AnalysisContent() {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const videoUrl = searchParams.get("url") ?? "";
   const demoParam = searchParams.get("demo");
   const isDemo = demoParam === null ? config.isDemo : demoParam !== "false";
 
   const { result, isLoading, agentProgress, error, analyze } = useAnalysis();
+  const [inputUrl, setInputUrl] = useState("");
+
+  const handleNewAnalysis = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputUrl) return;
+    router.push(`/analysis?url=${encodeURIComponent(inputUrl)}&demo=${isDemo}`);
+  };
   const displayedAgents = agentProgress.length > 0 ? agentProgress : result?.agents ?? [];
 
   // Guard against React StrictMode's intentional double-mount in development,
@@ -47,7 +57,7 @@ function AnalysisContent() {
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col md:flex-row items-start md:items-end gap-4 mb-12">
           <div className="p-3 bg-primary border-4 border-foreground bk-shadow-md">
-            <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none">
+            <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none text-primary-foreground">
               {t("analysis.title")}
             </h1>
           </div>
@@ -71,9 +81,8 @@ function AnalysisContent() {
               <AgentPanel agents={displayedAgents} />
             ) : !result ? (
               <div className="flex items-center gap-4 p-6 border-4 border-foreground bg-muted/20 bk-shadow-sm">
-                <Loader2 className="h-8 w-8 animate-spin text-foreground" />
-                <span className="font-black uppercase tracking-widest">
-                  Initialising agents...
+                <span className="font-black uppercase tracking-widest opacity-40">
+                  Waiting for input
                 </span>
               </div>
             ) : null}
@@ -115,10 +124,55 @@ function AnalysisContent() {
                 </div>
               </div>
             ) : (
-              <div className="h-[500px] border-4 border-foreground bg-muted/10 flex items-center justify-center">
-                <p className="font-black uppercase tracking-widest opacity-20 text-4xl -rotate-12">
-                  Waiting for input
-                </p>
+              <div className="h-[600px] border-4 border-foreground bg-secondary/5 flex flex-col items-center justify-center p-8 text-center space-y-8 bk-diagonal-lines">
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <div className="mx-auto w-20 h-20 bg-background border-4 border-foreground flex items-center justify-center bk-shadow-sm mb-6 rotate-3">
+                    <Shield className="h-10 w-10 text-primary" />
+                  </div>
+                  <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter italic leading-none">
+                    Ready for Analysis
+                  </h2>
+                  <p className="text-base font-bold text-muted-foreground uppercase tracking-widest max-w-md mx-auto">
+                    Paste a link to a disaster video from Reddit, X, or YouTube to begin forensic verification.
+                  </p>
+                </div>
+                
+                <form 
+                  onSubmit={handleNewAnalysis} 
+                  className="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-1000"
+                >
+                  <div className="flex flex-col gap-4 p-6 bg-background border-4 border-foreground bk-shadow-lg">
+                    <div className="space-y-2 text-left mb-2">
+                      <label className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
+                        Target Source URL
+                      </label>
+                      <Input
+                        type="url"
+                        placeholder={t("home.submitPlaceholder")}
+                        value={inputUrl}
+                        onChange={(e) => setInputUrl(e.target.value)}
+                        className="text-lg h-14 bg-muted/20"
+                        required
+                      />
+                    </div>
+                    <Button 
+                      type="submit" 
+                      size="xl"
+                      className="w-full text-xl font-black uppercase tracking-widest"
+                    >
+                      {t("home.analyseButton")}
+                      <ArrowRight className="ml-2 h-6 w-6" />
+                    </Button>
+                  </div>
+                </form>
+
+                <div className="flex items-center gap-6 opacity-30 animate-pulse">
+                  <div className="h-[2px] w-12 bg-foreground" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.4em]">
+                    Awaiting Signal
+                  </span>
+                  <div className="h-[2px] w-12 bg-foreground" />
+                </div>
               </div>
             )}
           </div>

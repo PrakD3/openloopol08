@@ -20,21 +20,36 @@ async def notification_node(state: AgentState) -> AgentState:
     """
     verdict = state.get("verdict", "unverified")
     credibility_score = state.get("credibility_score", 0)
-    context_detail = json.loads(state.get("context_result", {}).detail or "{}")
-    source_detail = json.loads(state.get("source_result", {}).detail or "{}")
+    if state.get("error"):
+        return {**state, "notification_result": {"sent": False, "reason": f"Pipeline error: {state['error']}"}}
+
+    # Helper to safely extract detail from AgentFinding or None
+    def get_detail(finding):
+        if not finding or not hasattr(finding, "detail") or not finding.detail:
+            return {}
+        try:
+            return json.loads(finding.detail)
+        except Exception:
+            return {}
+
+    context_detail = get_detail(state.get("context_result"))
+    source_detail = get_detail(state.get("source_result"))
 
     # Extract location from source hunter (GPS from EXIF or platform metadata)
     exif = source_detail.get("exif", {})
     platform_meta = source_detail.get("platform_metadata", {})
     event_lat = exif.get("gps_lat") or state.get("metadata", {}).get("lat")
     event_lon = exif.get("gps_lon") or state.get("metadata", {}).get("lon")
+    
+    # Safely navigate context_detail nested structure
+    llm_res = context_detail.get("llm_result", {})
     event_location_name = (
         platform_meta.get("location")
-        or context_detail.get("llm_result", {}).get("claimed_location")
+        or llm_res.get("claimed_location")
         or "Unknown location"
     )
-    event_type = context_detail.get("llm_result", {}).get("event_type", "unknown")
-    is_war_or_conflict = context_detail.get("llm_result", {}).get("is_war_or_conflict", False)
+    event_type = llm_res.get("event_type", "unknown")
+    is_war_or_conflict = llm_res.get("is_war_or_conflict", False)
 
     notification_result = {"sent": False, "reason": "No GPS coordinates available"}
 

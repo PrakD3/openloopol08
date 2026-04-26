@@ -4,7 +4,7 @@ import time
 import traceback
 import uuid
 from dataclasses import asdict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -35,7 +35,7 @@ _RUNTIME_LOGGED = False
 
 def _ts() -> str:
     """Return a compact UTC timestamp string for log lines."""
-    return datetime.now(UTC).strftime("%H:%M:%S.%f")[:-3]
+    return datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
 
 
 # ── POST /analyze ─────────────────────────────────────────────────────────────

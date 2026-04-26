@@ -109,7 +109,9 @@ export function VerdictCard({ result }: VerdictCardProps) {
                 size={80}
                 strokeWidth={6}
                 colorClass={
-                  result.verdict === "real" ? "text-accent" : "text-destructive"
+                  result.credibilityScore >= 70 ? "text-success" :
+                  result.credibilityScore >= 40 ? "text-accent" :
+                  "text-destructive"
                 }
               />
               <ScoreRing
@@ -117,7 +119,11 @@ export function VerdictCard({ result }: VerdictCardProps) {
                 label={t("analysis.panicIndex")}
                 size={80}
                 strokeWidth={6}
-                colorClass="text-primary"
+                colorClass={
+                  result.panicIndex >= 7 ? "text-destructive" :
+                  result.panicIndex >= 4 ? "text-accent" :
+                  "text-success"
+                }
               />
             </div>
           </div>
@@ -147,9 +153,9 @@ export function VerdictCard({ result }: VerdictCardProps) {
                 {displayFlags(result.keyFlags).map((flag, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-1 text-xs bg-secondary rounded-full px-3 py-1"
+                    className="flex items-center gap-2 text-xs font-black uppercase tracking-tighter bg-background border-2 border-foreground px-3 py-1.5 bk-shadow-sm"
                   >
-                    <AlertTriangle className="h-3 w-3 text-destructive" />
+                    <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
                     {flag}
                   </div>
                 ))}
@@ -180,28 +186,28 @@ export function VerdictCard({ result }: VerdictCardProps) {
               </div>
             )}
             {result.originalDate && (
-              <div className="space-y-1">
-                <p className="font-medium text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-3 w-3" /> Original Date
-                </p>
-                <p>{result.originalDate}</p>
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-background border-2 border-foreground text-[10px] font-black uppercase tracking-widest bk-shadow-sm">
+                  <Calendar className="h-2.5 w-2.5" /> Original Date
+                </div>
+                <p className="text-sm font-bold pl-1">{result.originalDate}</p>
               </div>
             )}
             {result.claimedLocation && (
-              <div className="space-y-1">
-                <p className="font-medium text-muted-foreground flex items-center gap-1">
-                  <MapPin className="h-3 w-3" /> Claimed Location
-                </p>
-                <p>{result.claimedLocation}</p>
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-background border-2 border-foreground text-[10px] font-black uppercase tracking-widest bk-shadow-sm">
+                  <MapPin className="h-2.5 w-2.5" /> Claimed Location
+                </div>
+                <p className="text-sm font-bold pl-1">{result.claimedLocation}</p>
               </div>
             )}
             {result.actualLocation &&
               result.actualLocation !== result.claimedLocation && (
-                <div className="space-y-1">
-                  <p className="font-medium text-muted-foreground flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> Actual Location
-                  </p>
-                  <p className="text-foreground">{result.actualLocation}</p>
+                <div className="space-y-2">
+                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-background border-2 border-foreground text-[10px] font-black uppercase tracking-widest bk-shadow-sm">
+                    <MapPin className="h-2.5 w-2.5" /> Actual Location
+                  </div>
+                  <p className="text-sm font-bold pl-1 text-foreground">{result.actualLocation}</p>
                 </div>
               )}
           </div>

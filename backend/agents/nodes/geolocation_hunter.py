@@ -44,7 +44,7 @@ class GeolocationHunter:
         # ── Use centralized LLM factory (prioritizes Google AI Studio / Vertex) ─
         try:
             self.llm = get_llm(model=settings.gemini_model)
-            self.mode = "google" if settings.google_api_key else "vertex"
+            self.mode = "vertex" if settings.google_cloud_project else "google"
             logger.info(f"Geolocation Hunter: Initialized with {self.mode.upper()} ({settings.gemini_model})")
         except Exception as e:
             logger.error(f"Geolocation Hunter: LLM init failed: {e}. Falling back to Groq...")
@@ -98,7 +98,7 @@ class GeolocationHunter:
 
             for frame_path in target_frames:
                 base64_image = self._encode_image(frame_path)
-                if self.mode == "gemini":
+                if self.mode in ["vertex", "google"]:
                     content.append({
                         "type": "image_url",
                         "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}

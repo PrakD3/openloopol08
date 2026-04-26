@@ -198,17 +198,13 @@ class DisasterScoringEngine:
         authentic_fraction = satisfied / total
         constraint_authentic = authentic_fraction * 100   # 0-100 authentic
 
-        # ML base score: if API returned something, trust it; otherwise estimate
+        # ML base score: if API returned something, trust it; otherwise 0 (no data)
         if api_fake_score is not None:
             ml_fake_base = float(api_fake_score)
         else:
-            # Estimate: fewer constraints satisfied → more likely fake
-            susceptibility = self.sig["deepfake_susceptibility"]
-            # Genuine content: authentic_fraction ≈ 1 → low fake estimate
-            # Fake content:    authentic_fraction ≈ 0 → high fake estimate
-            ml_fake_base = susceptibility * 100 + (1 - authentic_fraction) * (1 - susceptibility) * 100
+            ml_fake_base = 0.0
 
-        ml_authentic_base = 100.0 - ml_fake_base
+        ml_authentic_base = 100.0 - ml_fake_base if api_fake_score is not None else 0.0
 
         # Blend
         final_authentic = (
@@ -247,7 +243,7 @@ class DisasterScoringEngine:
         if api_source_score is not None:
             ml_base = float(api_source_score)
         else:
-            ml_base = constraint_score * 0.9 + 5.0   # slight conservative offset
+            ml_base = 0.0
 
         final = (
             self.CONSTRAINT_WEIGHT * constraint_score
@@ -279,7 +275,7 @@ class DisasterScoringEngine:
         if api_context_score is not None:
             ml_base = float(api_context_score)
         else:
-            ml_base = constraint_score * 0.85 + 7.5
+            ml_base = 0.0
 
         final = (
             self.CONSTRAINT_WEIGHT * constraint_score
@@ -363,7 +359,7 @@ class DisasterScoringEngine:
         """Count True values; default missing keys to True (benefit of doubt)."""
         details: Dict[str, bool] = {}
         for c in constraint_list:
-            details[c] = provided.get(c, True)
+            details[c] = provided.get(c, False)
         satisfied = sum(1 for v in details.values() if v)
         return satisfied, len(constraint_list), details
 

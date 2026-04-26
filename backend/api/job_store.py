@@ -11,7 +11,7 @@ In production, replace with Redis + a proper task queue (Celery / ARQ).
 from __future__ import annotations
 
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 # ── Primary store ─────────────────────────────────────────────────────────────
@@ -42,7 +42,7 @@ _url_to_job: dict[str, str] = {}
 
 def _ts() -> str:
     """Compact UTC timestamp for log lines."""
-    return datetime.now(UTC).strftime("%H:%M:%S.%f")[:-3]
+    return datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
 
 
 def create_job(job_id: str, video_url: str | None = None) -> dict[str, Any]:

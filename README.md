@@ -174,4 +174,4 @@ The backend requires FFmpeg. Use the provided `docker/Dockerfile.backend` for a 
 ---
 
 ## License
-MIT — see [LICENSE](LICENSE)
+Apache-2.0 — see [LICENSE](LICENSE)

@@ -47,7 +47,12 @@ export function ScoreRing({
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-3xl font-black bk-text-shadow text-foreground">{Math.round(score)}</span>
+          <span 
+            className={cn("text-3xl font-black", colorClass)}
+            style={{ textShadow: '3px 3px 0px hsl(var(--foreground))' }}
+          >
+            {Math.round(score)}
+          </span>
         </div>
       </div>
       <span className="text-[10px] font-black uppercase tracking-widest text-foreground text-center mt-1">{label}</span>

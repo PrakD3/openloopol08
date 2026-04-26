@@ -11,7 +11,12 @@ import time
 from dataclasses import asdict
 from typing import Any
 
+from datetime import datetime, timezone
 from langsmith import traceable
+
+
+def _ts() -> str:
+    return datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
 
 from agents.nodes.context_analyser import format_key_flags
 from agents.state import AgentState
@@ -59,6 +64,23 @@ async def orchestrator_node(state: AgentState) -> dict:
     """Compile final verdict from all agent findings."""
     job_id = state.get("job_id", "unknown")
     update_progress(job_id, 0.85, "orchestrator_starting")
+
+    if state.get("error") == "Video not found":
+        print(f"[{_ts()}] [ORCHESTRATOR] [JOB:{job_id[:8]}] Handling Video not found error", flush=True)
+        return {
+            **state,
+            "verdict": "unverified",
+            "credibility_score": 0,
+            "panic_index": 0,
+            "summary": "🚨 **VIDEO NOT FOUND**\n\nThe source URL could not be resolved or the video file is inaccessible. Please verify the link and try again.",
+            "disaster_type": "unknown",
+            "source_origin": None,
+            "original_date": None,
+            "claimed_location": state.get("claimed_location"),
+            "actual_location": None,
+            "key_flags": ["Video source unreachable", "Analysis aborted"],
+            "sos_region": None,
+        }
 
     if settings.app_mode == "demo":
         return _demo_verdict(state)

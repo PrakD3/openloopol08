@@ -1,10 +1,14 @@
 """Vigilens settings — single source of truth for all configuration."""
 
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
+from google.oauth2 import service_account
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_google_vertexai import ChatVertexAI
+from langchain_groq import ChatGroq
 from pydantic_settings import BaseSettings
 
 
@@ -103,7 +107,7 @@ else:
 
 
 def _ts() -> str:
-    return datetime.now(UTC).strftime("%H:%M:%S.%f")[:-3]
+    return datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
 
 
 def is_deprecated_groq_model(model_name: str | None) -> bool:
@@ -139,23 +143,9 @@ def get_llm(model: str | None = None):
     """
     Return ChatVertexAI (if credits available) or ChatGroq.
     """
-    # ── Priority 1: Google AI Studio (API Key) ──────────────────────────────
-    if settings.google_api_key:
-        try:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-
-            return ChatGoogleGenerativeAI(
-                model=settings.gemini_model, google_api_key=settings.google_api_key, temperature=0.1
-            )
-        except Exception as e:
-            print(f"[SETTINGS] Google AI Studio load failed: {e}. Trying Vertex...")
-
-    # ── Priority 2: Vertex AI (GCP Project) ──────────────────────────────────
+    # ── Priority 1: Vertex AI (GCP Project) ──────────────────────────────────
     if settings.google_cloud_project:
         try:
-            from google.oauth2 import service_account
-            from langchain_google_vertexai import ChatVertexAI
-
             creds = None
             if settings.google_cloud_key_path and os.path.exists(settings.google_cloud_key_path):
                 creds = service_account.Credentials.from_service_account_file(
@@ -170,11 +160,18 @@ def get_llm(model: str | None = None):
                 temperature=0.1,
             )
         except Exception as e:
-            print(f"[SETTINGS] Vertex AI load failed: {e}. Falling back to Groq...")
+            print(f"[SETTINGS] Vertex AI load failed: {e}. Trying AI Studio...")
 
-    # ── Priority 2: Groq (API Key) ────────────────────────────────────────────
-    from langchain_groq import ChatGroq
+    # ── Priority 2: Google AI Studio (API Key) ──────────────────────────────
+    if settings.google_api_key:
+        try:
+            return ChatGoogleGenerativeAI(
+                model=settings.gemini_model, google_api_key=settings.google_api_key, temperature=0.1
+            )
+        except Exception as e:
+            print(f"[SETTINGS] Google AI Studio load failed: {e}. Falling back to Groq...")
 
+    # ── Priority 3: Groq (API Key) ────────────────────────────────────────────
     if not settings.groq_api_key:
         raise RuntimeError("GROQ_API_KEY is not set.")
 

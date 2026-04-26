@@ -145,13 +145,17 @@ async def _transcribe_audio(audio_path: str | None) -> str | None:
 
 async def _extract_ocr_text_online(keyframes: list[str]) -> str:
     """
-    Extract text from keyframes using Groq Vision.
+    Extract text from keyframes using Gemini (Vertex AI).
     Targets chyrons, lower thirds, watermarks, channel names, timestamps,
     location overlays, breaking news banners, and street signs.
     Returns concatenated text from all frames, deduplicated.
     """
-    if not keyframes or not settings.groq_api_key:
+    if not keyframes:
         return ""
+
+    # Prefer Gemini for Vision (Vertex credits)
+    llm = get_llm(settings.gemini_model)
+    from langchain_core.messages import HumanMessage
 
     # Use top 3 frames only (middle frames tend to have clearest overlays)
     frames_to_check = (
@@ -175,44 +179,32 @@ async def _extract_ocr_text_online(keyframes: list[str]) -> str:
             with open(frame_path, "rb") as f:
                 image_b64 = base64.b64encode(f.read()).decode("utf-8")
 
-            async with httpx.AsyncClient(timeout=25.0) as client:
-                response = await client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {settings.groq_api_key}"},
-                    json={
-                        "model": settings.groq_vision_model,
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": [
-                                    {
-                                        "type": "image_url",
-                                        "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"},
-                                    },
-                                    {
-                                        "type": "text",
-                                        "text": (
-                                            "Extract ALL visible text from this image. "
-                                            "Include: news tickers, lower third banners, chyrons, "
-                                            "channel watermarks (e.g. @CHANNEL, network names), "
-                                            "timestamps, location overlays, street signs, "
-                                            "captions, breaking news banners, and any other text. "
-                                            "Output ONLY the extracted text, one item per line. "
-                                            "If no text is visible, output: [no text detected]"
-                                        ),
-                                    },
-                                ],
-                            }
-                        ],
-                        "max_tokens": 300,
+            prompt = (
+                "Extract ALL visible text from this image. "
+                "Include: news tickers, lower third banners, chyrons, "
+                "channel watermarks (e.g. @CHANNEL, network names), "
+                "timestamps, location overlays, street signs, "
+                "captions, breaking news banners, and any other text. "
+                "Output ONLY the extracted text, one item per line. "
+                "If no text is visible, output: [no text detected]"
+            )
+
+            message = HumanMessage(
+                content=[
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"},
                     },
-                )
-                response.raise_for_status()
-                data = response.json()
-                text = data["choices"][0]["message"]["content"].strip()
-                if text and text != "[no text detected]":
-                    all_text_chunks.append(text)
-                    logger.info(f"[OCR] Frame {Path(frame_path).name}: extracted {len(text)} chars")
+                ]
+            )
+
+            response = await asyncio.wait_for(llm.ainvoke([message]), timeout=30.0)
+            text = response.content.strip()
+            
+            if text and text != "[no text detected]":
+                all_text_chunks.append(text)
+                logger.info(f"[OCR] Frame {Path(frame_path).name}: extracted {len(text)} chars")
 
         except Exception as e:
             logger.error(f"[OCR] Vision OCR failed for {frame_path}: {e}")
@@ -420,16 +412,9 @@ async def _analyse_context_with_llm(
 ) -> dict:
     """Call the orchestrator LLM to synthesise context findings."""
     try:
-        # Use a vision-capable model if in online mode
-        model_name = settings.groq_orchestrator_model
-        is_vision = False
-
-        # Always use cloud vision if we have a Groq key and frames
-        if settings.groq_api_key and keyframes:
-            model_name = settings.groq_vision_model
-            is_vision = True
-
-        llm = get_llm(model_name)
+        # Use centralized LLM factory (Vertex AI first)
+        llm = get_llm(settings.gemini_model)
+        
         gdacs_summary = json.dumps(
             [
                 {
@@ -449,7 +434,7 @@ async def _analyse_context_with_llm(
             claimed_location=claimed_location or "Unknown",
         )
 
-        if is_vision and keyframes:
+        if keyframes:
             # Resize image to save tokens and avoid 429
             mid_idx = len(keyframes) // 2
             img = Image.open(keyframes[mid_idx])
@@ -461,49 +446,23 @@ async def _analyse_context_with_llm(
             img.save(buffer, format="JPEG", quality=85)
             encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-            print(f"[Context/LLM] Using Groq Vision ({model_name}) with representative frame...")
-            if is_deprecated_groq_model(model_name):
-                print(
-                    f"[Context/LLM] WARNING: configured Groq vision model {model_name!r} is deprecated.",
-                    flush=True,
-                )
-
-            # We use httpx directly for vision since ChatGroq wrapper might not handle multi-modal perfectly yet
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {settings.groq_api_key}"},
-                    json={
-                        "model": model_name,
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": prompt_text},
-                                    {
-                                        "type": "image_url",
-                                        "image_url": {"url": f"data:image/jpeg;base64,{encoded}"},
-                                    },
-                                ],
-                            }
-                        ],
-                        "response_format": {"type": "json_object"},
-                        "temperature": 0.1,
+            print(f"[Context/LLM] Using Vertex Gemini ({settings.gemini_model}) for vision analysis...")
+            
+            from langchain_core.messages import HumanMessage
+            message = HumanMessage(
+                content=[
+                    {"type": "text", "text": prompt_text},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{encoded}"},
                     },
-                    timeout=25.0,
-                )
-                if response.status_code != 200:
-                    print(
-                        f"[Context/LLM] Vision HTTP {response.status_code} model={model_name!r} "
-                        f"body={response.text[:500]!r}",
-                        flush=True,
-                    )
-                response.raise_for_status()
-                data = response.json()
-                content = data["choices"][0]["message"]["content"]
+                ]
+            )
+            response = await asyncio.wait_for(llm.ainvoke([message]), timeout=45.0)
+            content = response.content if hasattr(response, "content") else str(response)
         else:
             # Standard text-only invocation
-            print(f"[Context/LLM] Using text-only model ({model_name})...")
+            print(f"[Context/LLM] Using Vertex Gemini ({settings.gemini_model}) for text analysis...")
             response = await llm.ainvoke(prompt_text)
             content = response.content if hasattr(response, "content") else str(response)
 
@@ -558,7 +517,7 @@ async def context_analyser_node(state: AgentState) -> AgentFinding:
         flush=True,
     )
 
-    # OCR (now online via Groq Vision)
+    # OCR (now online via Gemini Vision)
     ocr_task = _extract_ocr_text_online(keyframes)
 
     # Whisper transcription (async)
