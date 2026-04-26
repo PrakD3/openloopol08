@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import type { SOSRegion } from '@/types';
+import { useEffect, useRef } from 'react';
 
 interface SOSMapProps {
   sosRegion: SOSRegion;
@@ -30,7 +30,10 @@ export function SOSMap({ sosRegion }: SOSMapProps) {
       import('leaflet'),
       // Load CSS
       new Promise<void>((resolve) => {
-        if (document.querySelector('link[href*="leaflet"]')) { resolve(); return; }
+        if (document.querySelector('link[href*="leaflet"]')) {
+          resolve();
+          return;
+        }
         const link = document.createElement('link');
         link.rel = 'stylesheet';
         link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
@@ -59,13 +62,14 @@ export function SOSMap({ sosRegion }: SOSMapProps) {
 
       // OpenStreetMap tile layer — no API key required
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        attribution:
+          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 18,
       }).addTo(map);
 
       // Impact radius circle
       const circle = L.circle([sosRegion.lat, sosRegion.lng], {
-        radius: sosRegion.radiusKm * 1000,   // convert km → metres
+        radius: sosRegion.radiusKm * 1000, // convert km → metres
         color: sosRegion.color,
         fillColor: sosRegion.color,
         fillOpacity: 0.15,
@@ -114,21 +118,22 @@ export function SOSMap({ sosRegion }: SOSMapProps) {
             🆘 SOS Region Active
           </p>
         </div>
-        <span className="text-xs text-muted-foreground">
-          Radius: {sosRegion.radiusKm} km
-        </span>
+        <span className="text-xs text-muted-foreground">Radius: {sosRegion.radiusKm} km</span>
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {label} centred on <strong>{sosRegion.centerName}</strong>.
-        Impact radius estimated at <strong>{sosRegion.radiusKm} km</strong> based on
-        disaster intensity (panic index {sosRegion.panicIndex}/10).
-        Data via <a
+        {label} centred on <strong>{sosRegion.centerName}</strong>. Impact radius estimated at{' '}
+        <strong>{sosRegion.radiusKm} km</strong> based on disaster intensity (panic index{' '}
+        {sosRegion.panicIndex}/10). Data via{' '}
+        <a
           href="https://www.openstreetmap.org"
           target="_blank"
           rel="noopener noreferrer"
           className="underline hover:text-foreground"
-        >OpenStreetMap</a>.
+        >
+          OpenStreetMap
+        </a>
+        .
       </p>
 
       {/* Map container */}
@@ -144,9 +149,9 @@ export function SOSMap({ sosRegion }: SOSMapProps) {
 }
 
 function _zoomForRadius(km: number): number {
-  if (km <= 10)  return 11;
-  if (km <= 30)  return 10;
-  if (km <= 80)  return 9;
+  if (km <= 10) return 11;
+  if (km <= 30) return 10;
+  if (km <= 80) return 9;
   if (km <= 200) return 8;
   return 7;
 }

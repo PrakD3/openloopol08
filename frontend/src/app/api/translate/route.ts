@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config';
+import { type NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   const body = (await req.json()) as { text: string; targetLang: string };
@@ -7,15 +7,18 @@ export async function POST(req: NextRequest) {
 
   if (config.isOffline) {
     try {
-      const response = await fetch(`${process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'llama3.1:8b',
-          prompt: `Translate the following text to ${targetLang}. Return only the translation, no explanation:\n\n${text}`,
-          stream: false,
-        }),
-      });
+      const response = await fetch(
+        `${process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'}/api/generate`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'llama3.1:8b',
+            prompt: `Translate the following text to ${targetLang}. Return only the translation, no explanation:\n\n${text}`,
+            stream: false,
+          }),
+        }
+      );
       const data = (await response.json()) as { response: string };
       return NextResponse.json({ translated: data.response });
     } catch {

@@ -1,13 +1,12 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Menu, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
-import { Shield, Menu } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ModeToggle } from './ModeToggle';
-import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export function Navbar() {
   const { t, i18n } = useTranslation();
@@ -48,7 +47,9 @@ export function Navbar() {
                 href={link.href}
                 className={cn(
                   'text-sm font-black uppercase tracking-widest transition-all hover:translate-y-[-2px] hover:text-primary',
-                  pathname === link.href ? 'text-primary underline decoration-4 underline-offset-8' : 'text-foreground'
+                  pathname === link.href
+                    ? 'text-primary underline decoration-4 underline-offset-8'
+                    : 'text-foreground'
                 )}
               >
                 {link.label}

@@ -1,14 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MOCK_INCIDENTS } from '@/lib/demoData';
-import type { VerdictType } from '@/types';
 import { cn } from '@/lib/utils';
+import type { VerdictType } from '@/types';
 import { MapPin } from 'lucide-react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const filters: Array<{ label: string; value: string }> = [
   { label: 'All', value: 'all' },
@@ -45,8 +45,10 @@ export default function IncidentsPage() {
               variant={activeFilter === f.value ? 'default' : 'outline'}
               size="lg"
               className={cn(
-                "border-3 transition-all",
-                activeFilter === f.value ? "bk-shadow-sm translate-x-[2px] translate-y-[2px] shadow-none" : "bk-shadow-md"
+                'border-3 transition-all',
+                activeFilter === f.value
+                  ? 'bk-shadow-sm translate-x-[2px] translate-y-[2px] shadow-none'
+                  : 'bk-shadow-md'
               )}
               onClick={() => setActiveFilter(f.value)}
             >
@@ -63,9 +65,13 @@ export default function IncidentsPage() {
                   <Badge variant={incident.verdict as VerdictType} className="border-2">
                     {incident.verdict.toUpperCase()}
                   </Badge>
-                  <span className="text-xs font-black uppercase tracking-tighter italic">{incident.date}</span>
+                  <span className="text-xs font-black uppercase tracking-tighter italic">
+                    {incident.date}
+                  </span>
                 </div>
-                <CardTitle className="text-lg font-black uppercase leading-tight tracking-tight">{incident.title}</CardTitle>
+                <CardTitle className="text-lg font-black uppercase leading-tight tracking-tight">
+                  {incident.title}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
                 <div className="space-y-4">
@@ -79,8 +85,12 @@ export default function IncidentsPage() {
 
                 <div className="space-y-2">
                   <div className="flex justify-between items-end mb-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest">{t('incidents.misinfoRate')}</span>
-                    <span className="text-lg font-black text-destructive">{incident.misinfoRate}%</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">
+                      {t('incidents.misinfoRate')}
+                    </span>
+                    <span className="text-lg font-black text-destructive">
+                      {incident.misinfoRate}%
+                    </span>
                   </div>
                   <div className="h-4 bg-background border-3 border-foreground overflow-hidden bk-shadow-sm">
                     <div
@@ -92,7 +102,10 @@ export default function IncidentsPage() {
 
                 <div className="flex flex-wrap gap-2 pt-2">
                   {incident.tags.map((tag) => (
-                    <span key={tag} className="text-[10px] font-black uppercase tracking-[0.2em] bg-secondary text-white px-3 py-1 border-2 border-foreground bk-shadow-sm">
+                    <span
+                      key={tag}
+                      className="text-[10px] font-black uppercase tracking-[0.2em] bg-secondary text-white px-3 py-1 border-2 border-foreground bk-shadow-sm"
+                    >
                       #{tag}
                     </span>
                   ))}

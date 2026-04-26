@@ -25,7 +25,10 @@ export function ScoreRing({
 
   return (
     <div className={cn('flex flex-col items-center gap-2 group', className)}>
-      <div className="relative border-4 border-foreground bg-background bk-shadow-sm p-1" style={{ width: size + 8, height: size + 8 }}>
+      <div
+        className="relative border-4 border-foreground bg-background bk-shadow-sm p-1"
+        style={{ width: size + 8, height: size + 8 }}
+      >
         <svg width={size} height={size} className="rotate-[-90deg]">
           <circle
             cx={size / 2}
@@ -47,15 +50,17 @@ export function ScoreRing({
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span 
-            className={cn("text-3xl font-black", colorClass)}
+          <span
+            className={cn('text-3xl font-black', colorClass)}
             style={{ textShadow: '3px 3px 0px hsl(var(--foreground))' }}
           >
             {Math.round(score)}
           </span>
         </div>
       </div>
-      <span className="text-[10px] font-black uppercase tracking-widest text-foreground text-center mt-1">{label}</span>
+      <span className="text-[10px] font-black uppercase tracking-widest text-foreground text-center mt-1">
+        {label}
+      </span>
     </div>
   );
 }

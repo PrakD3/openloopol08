@@ -1,9 +1,9 @@
-export type InferenceMode = "online" | "offline";
-export type AppMode = "demo" | "real";
+export type InferenceMode = 'online' | 'offline';
+export type AppMode = 'demo' | 'real';
 
-export type VerdictType = "real" | "misleading" | "ai-generated" | "unverified";
+export type VerdictType = 'real' | 'misleading' | 'ai-generated' | 'unverified';
 
-export type AgentStatus = "idle" | "running" | "done" | "error";
+export type AgentStatus = 'idle' | 'running' | 'done' | 'error';
 
 export interface ModelScore {
   modelName: string;
@@ -67,7 +67,7 @@ export interface DemoVideo {
   label: string;
   url: string;
   thumbnail: string;
-  platform: "youtube" | "instagram" | "twitter";
+  platform: 'youtube' | 'instagram' | 'twitter';
   precomputedResult: AnalysisResult;
 }
 
@@ -133,7 +133,7 @@ export interface CommunityPost {
   videoUrl: string;
   verdict: VerdictType;
   votes: number;
-  userVote: "up" | "down" | null;
+  userVote: 'up' | 'down' | null;
   timestamp: string;
   replies: number;
 }

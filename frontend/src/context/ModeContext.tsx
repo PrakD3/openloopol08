@@ -1,8 +1,8 @@
 'use client';
 
-import { createContext, useCallback, useContext, useState } from 'react';
 import { config } from '@/lib/config';
 import type { AppMode, InferenceMode } from '@/types';
+import { createContext, useCallback, useContext, useState } from 'react';
 
 interface ModeContextValue {
   appMode: AppMode;

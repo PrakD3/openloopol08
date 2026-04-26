@@ -1,20 +1,21 @@
 'use client';
 
-import { useMode } from '@/hooks/useMode';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { config } from '@/lib/config';
-import { AlertTriangle } from 'lucide-react';
+import { useMode } from '@/hooks/useMode';
 
 export function ModeToggle() {
   const { appMode, inferenceMode, toggleAppMode } = useMode();
 
   return (
     <div className="flex items-center gap-3">
-      <Badge variant="default" className="border-2 font-black text-[10px] uppercase tracking-widest px-2">
+      <Badge
+        variant="default"
+        className="border-2 font-black text-[10px] uppercase tracking-widest px-2"
+      >
         🌐 ONLINE
       </Badge>
- 
+
       <Button
         variant={appMode === 'real' ? 'destructive' : 'secondary'}
         size="sm"

@@ -1,3 +1,3 @@
-"use client";
+'use client';
 
-export { useModeContext as useMode } from "@/context/ModeContext";
+export { useModeContext as useMode } from '@/context/ModeContext';

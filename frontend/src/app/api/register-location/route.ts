@@ -2,7 +2,7 @@
 // Receives GPS + phone from NotificationOptIn component
 // Proxies to Python backend /register-location endpoint
 
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -14,7 +14,10 @@ export async function POST(request: NextRequest) {
 
   // Validate E.164 phone format
   if (!/^\+[1-9]\d{6,14}$/.test(phone)) {
-    return NextResponse.json({ error: 'Invalid phone format. Use E.164 e.g. +971501234567' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Invalid phone format. Use E.164 e.g. +971501234567' },
+      { status: 400 }
+    );
   }
 
   try {

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import type { AnalysisResult, AgentFinding, ModelScore, SOSRegion } from '@/types';
 import { DEMO_VIDEOS } from '@/lib/demoData';
 import { sleep } from '@/lib/utils';
+import type { AgentFinding, AnalysisResult, ModelScore, SOSRegion } from '@/types';
+import { useCallback, useState } from 'react';
 
 interface UseAnalysisReturn {
   result: AnalysisResult | null;
@@ -20,64 +20,80 @@ interface UseAnalysisReturn {
 
 function mapModelScore(raw: Record<string, unknown>): ModelScore {
   return {
-    modelName:    String(raw.model_name   ?? raw.modelName   ?? ''),
+    modelName: String(raw.model_name ?? raw.modelName ?? ''),
     authenticPct: Number(raw.authentic_pct ?? raw.authenticPct ?? 0),
-    fakePct:      Number(raw.fake_pct      ?? raw.fakePct      ?? 0),
-    confidence:   Number(raw.confidence    ?? 0),
+    fakePct: Number(raw.fake_pct ?? raw.fakePct ?? 0),
+    confidence: Number(raw.confidence ?? 0),
   };
 }
 
 function mapAgent(raw: Record<string, unknown>): AgentFinding {
   const modelScoresRaw = (raw.model_scores ?? raw.modelScores ?? []) as Record<string, unknown>[];
   return {
-    agentId:              String(raw.agent_id   ?? raw.agentId   ?? ''),
-    agentName:            String(raw.agent_name ?? raw.agentName ?? ''),
-    status:               (raw.status ?? 'done') as AgentFinding['status'],
-    score:                raw.score != null ? Number(raw.score) : null,
-    findings:             (raw.findings ?? []) as string[],
-    detail:               raw.detail != null ? String(raw.detail) : null,
-    duration:             raw.duration_ms != null ? Number(raw.duration_ms) : undefined,
-    constraintsSatisfied: raw.constraints_satisfied != null ? Number(raw.constraints_satisfied) : undefined,
-    totalConstraints:     raw.total_constraints    != null ? Number(raw.total_constraints)    : undefined,
-    constraintDetails:    (raw.constraint_details ?? raw.constraintDetails ?? {}) as Record<string, boolean>,
-    modelScores:          modelScoresRaw.map(mapModelScore),
+    agentId: String(raw.agent_id ?? raw.agentId ?? ''),
+    agentName: String(raw.agent_name ?? raw.agentName ?? ''),
+    status: (raw.status ?? 'done') as AgentFinding['status'],
+    score: raw.score != null ? Number(raw.score) : null,
+    findings: (raw.findings ?? []) as string[],
+    detail: raw.detail != null ? String(raw.detail) : null,
+    duration: raw.duration_ms != null ? Number(raw.duration_ms) : undefined,
+    constraintsSatisfied:
+      raw.constraints_satisfied != null ? Number(raw.constraints_satisfied) : undefined,
+    totalConstraints: raw.total_constraints != null ? Number(raw.total_constraints) : undefined,
+    constraintDetails: (raw.constraint_details ?? raw.constraintDetails ?? {}) as Record<
+      string,
+      boolean
+    >,
+    modelScores: modelScoresRaw.map(mapModelScore),
   };
 }
 
 function mapSOSRegion(raw: Record<string, unknown> | null | undefined): SOSRegion | null {
   if (!raw) return null;
   return {
-    lat:          Number(raw.lat),
-    lng:          Number(raw.lng),
-    radiusKm:     Number(raw.radius_km ?? raw.radiusKm ?? 0),
-    centerName:   String(raw.center_name ?? raw.centerName ?? ''),
+    lat: Number(raw.lat),
+    lng: Number(raw.lng),
+    radiusKm: Number(raw.radius_km ?? raw.radiusKm ?? 0),
+    centerName: String(raw.center_name ?? raw.centerName ?? ''),
     disasterType: String(raw.disaster_type ?? raw.disasterType ?? 'unknown'),
-    panicIndex:   Number(raw.panic_index  ?? raw.panicIndex  ?? 0),
-    color:        String(raw.color        ?? '#f59e0b'),
-    sosActive:    Boolean(raw.sos_active  ?? raw.sosActive   ?? false),
+    panicIndex: Number(raw.panic_index ?? raw.panicIndex ?? 0),
+    color: String(raw.color ?? '#f59e0b'),
+    sosActive: Boolean(raw.sos_active ?? raw.sosActive ?? false),
   };
 }
 
 function mapResult(raw: Record<string, unknown>): AnalysisResult {
   const agentsRaw = (raw.agents ?? []) as Record<string, unknown>[];
   return {
-    jobId:           String(raw.job_id          ?? raw.jobId          ?? ''),
-    verdict:         (raw.verdict ?? 'unverified') as AnalysisResult['verdict'],
+    jobId: String(raw.job_id ?? raw.jobId ?? ''),
+    verdict: (raw.verdict ?? 'unverified') as AnalysisResult['verdict'],
     credibilityScore: Number(raw.credibility_score ?? raw.credibilityScore ?? 0),
-    panicIndex:       Number(raw.panic_index       ?? raw.panicIndex       ?? 5),
-    summary:          String(raw.summary ?? ''),
-    disasterType:     String(raw.disaster_type ?? raw.disasterType ?? 'unknown'),
-    sourceOrigin:     raw.source_origin  != null ? String(raw.source_origin)  : null,
-    originalDate:     raw.original_date  != null ? String(raw.original_date)  : null,
-    claimedLocation:  raw.claimed_location ?? raw.claimedLocation ?? null,
-    actualLocation:   raw.actual_location  ?? raw.actualLocation  ?? null,
-    latitude:         raw.latitude         != null ? Number(raw.latitude)  : null,
-    longitude:        raw.longitude        != null ? Number(raw.longitude) : null,
-    keyFlags:         (raw.key_flags ?? raw.keyFlags ?? []) as string[],
-    agents:           agentsRaw.map(mapAgent),
-    sosRegion:        mapSOSRegion(raw.sos_region as Record<string, unknown> ?? raw.sosRegion as Record<string, unknown>),
-    videoUrl:         raw.video_url != null ? String(raw.video_url) : undefined,
-    thumbnail:        raw.thumbnail != null ? String(raw.thumbnail) : undefined,
+    panicIndex: Number(raw.panic_index ?? raw.panicIndex ?? 5),
+    summary: String(raw.summary ?? ''),
+    disasterType: String(raw.disaster_type ?? raw.disasterType ?? 'unknown'),
+    sourceOrigin: raw.source_origin != null ? String(raw.source_origin) : null,
+    originalDate: raw.original_date != null ? String(raw.original_date) : null,
+    claimedLocation:
+      raw.claimed_location != null
+        ? String(raw.claimed_location)
+        : raw.claimedLocation != null
+          ? String(raw.claimedLocation)
+          : null,
+    actualLocation:
+      raw.actual_location != null
+        ? String(raw.actual_location)
+        : raw.actualLocation != null
+          ? String(raw.actualLocation)
+          : null,
+    latitude: raw.latitude != null ? Number(raw.latitude) : null,
+    longitude: raw.longitude != null ? Number(raw.longitude) : null,
+    keyFlags: (raw.key_flags ?? raw.keyFlags ?? []) as string[],
+    agents: agentsRaw.map(mapAgent),
+    sosRegion: mapSOSRegion(
+      (raw.sos_region as Record<string, unknown>) ?? (raw.sosRegion as Record<string, unknown>)
+    ),
+    videoUrl: raw.video_url != null ? String(raw.video_url) : undefined,
+    thumbnail: raw.thumbnail != null ? String(raw.thumbnail) : undefined,
   };
 }
 
@@ -126,9 +142,7 @@ export function useAnalysis(): UseAnalysisReturn {
           );
           await sleep((i + 1) * 2500);
           setAgentProgress((prev) =>
-            prev.map((a, idx) =>
-              idx === i ? { ...precomputed.agents[i], status: 'done' } : a
-            )
+            prev.map((a, idx) => (idx === i ? { ...precomputed.agents[i], status: 'done' } : a))
           );
         }
 

@@ -7,14 +7,20 @@
  * Uses BoldKit components only.
  */
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-type RegistrationState = 'idle' | 'requesting-gps' | 'entering-phone' | 'submitting' | 'done' | 'error';
+type RegistrationState =
+  | 'idle'
+  | 'requesting-gps'
+  | 'entering-phone'
+  | 'submitting'
+  | 'done'
+  | 'error';
 
 export function NotificationOptIn() {
   const { t } = useTranslation();
@@ -68,7 +74,9 @@ export function NotificationOptIn() {
       <Card className="border-primary/30 bg-primary/5">
         <CardContent className="pt-4">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-primary border-primary">✓ Alerts Active</Badge>
+            <Badge variant="outline" className="text-primary border-primary">
+              ✓ Alerts Active
+            </Badge>
             <span className="text-sm text-muted-foreground">
               You will receive SMS alerts for verified disasters within 10km.
             </span>
@@ -86,8 +94,8 @@ export function NotificationOptIn() {
           <Badge variant="secondary">Free</Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          Receive SMS when a verified real disaster is detected within 10km of you.
-          Alerts only fire for confirmed events — never for AI-generated or misleading content.
+          Receive SMS when a verified real disaster is detected within 10km of you. Alerts only fire
+          for confirmed events — never for AI-generated or misleading content.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -123,7 +131,9 @@ export function NotificationOptIn() {
         {state === 'error' && (
           <div className="space-y-2">
             <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" onClick={() => setState('idle')}>Try Again</Button>
+            <Button variant="outline" onClick={() => setState('idle')}>
+              Try Again
+            </Button>
           </div>
         )}
       </CardContent>

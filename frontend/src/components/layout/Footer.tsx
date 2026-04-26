@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import { Shield } from 'lucide-react';
+import Link from 'next/link';
 
 export function Footer() {
   return (
@@ -16,13 +16,22 @@ export function Footer() {
             </span>
           </div>
           <div className="flex flex-wrap justify-center gap-6 text-xs font-black uppercase tracking-widest">
-            <Link href="/how-it-works" className="hover:text-primary transition-all hover:translate-y-[-2px]">
+            <Link
+              href="/how-it-works"
+              className="hover:text-primary transition-all hover:translate-y-[-2px]"
+            >
               How It Works
             </Link>
-            <Link href="/incidents" className="hover:text-primary transition-all hover:translate-y-[-2px]">
+            <Link
+              href="/incidents"
+              className="hover:text-primary transition-all hover:translate-y-[-2px]"
+            >
               Incidents
             </Link>
-            <Link href="/bulletin" className="hover:text-primary transition-all hover:translate-y-[-2px]">
+            <Link
+              href="/bulletin"
+              className="hover:text-primary transition-all hover:translate-y-[-2px]"
+            >
               Bulletin
             </Link>
             <a

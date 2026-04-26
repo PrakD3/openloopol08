@@ -1,6 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Zap, Eye, Globe, GitMerge, Server, Cpu } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Cpu, Eye, GitMerge, Globe, Server, Zap } from 'lucide-react';
 
 export default function HowItWorksPage() {
   const pipeline = [
@@ -65,7 +65,7 @@ export default function HowItWorksPage() {
           </CardHeader>
           <CardContent className="p-8">
             <pre className="text-sm font-black font-mono text-foreground overflow-x-auto whitespace-pre p-6 bg-background border-4 border-foreground bk-shadow-sm">
-{`VIGILENS-OS-ALPHA
+              {`VIGILENS-OS-ALPHA
 =================
 Next.js Frontend [UI-LAYER]
       │  POST /api/analyze
@@ -100,7 +100,9 @@ FastAPI Backend [CORE-LOGIC]
 
         {/* Pipeline Steps */}
         <div className="space-y-6">
-          <h3 className="text-2xl font-black uppercase tracking-tighter italic border-b-8 border-foreground inline-block mb-4">Pipeline Protocol</h3>
+          <h3 className="text-2xl font-black uppercase tracking-tighter italic border-b-8 border-foreground inline-block mb-4">
+            Pipeline Protocol
+          </h3>
           {pipeline.map((step) => (
             <Card key={step.step} className="border-4 shadow-bk bk-hover-scale bg-background">
               <CardHeader className="pb-4">
@@ -111,7 +113,9 @@ FastAPI Backend [CORE-LOGIC]
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
                       <step.icon className="h-6 w-6 text-foreground" />
-                      <CardTitle className="text-2xl font-black uppercase tracking-tight">{step.name}</CardTitle>
+                      <CardTitle className="text-2xl font-black uppercase tracking-tight">
+                        {step.name}
+                      </CardTitle>
                     </div>
                     <p className="text-base font-bold text-muted-foreground mt-1">{step.desc}</p>
                   </div>
@@ -120,7 +124,11 @@ FastAPI Backend [CORE-LOGIC]
               <CardContent className="pt-0 pb-6 pl-[88px]">
                 <div className="flex flex-wrap gap-2">
                   {step.tech.map((t) => (
-                    <Badge key={t} variant="secondary" className="border-2 text-[10px] font-black uppercase tracking-widest px-3 py-1">
+                    <Badge
+                      key={t}
+                      variant="secondary"
+                      className="border-2 text-[10px] font-black uppercase tracking-widest px-3 py-1"
+                    >
                       {t}
                     </Badge>
                   ))}
@@ -146,7 +154,10 @@ FastAPI Backend [CORE-LOGIC]
                 'Reverse Search: Google Vision + TinEye',
                 'Requires API keys — see .env.example',
               ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3 font-black text-sm uppercase tracking-tight">
+                <div
+                  key={i}
+                  className="flex items-center gap-3 font-black text-sm uppercase tracking-tight"
+                >
                   <div className="h-2 w-2 bg-foreground" /> {item}
                 </div>
               ))}

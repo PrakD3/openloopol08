@@ -36,7 +36,9 @@ export function ModelBreakdown({ modelScores }: ModelBreakdownProps) {
               {/* Bar + percentages */}
               <div className="flex-1 max-w-[180px]">
                 <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span className="text-green-600 dark:text-green-400">{m.authenticPct.toFixed(1)}% auth</span>
+                  <span className="text-green-600 dark:text-green-400">
+                    {m.authenticPct.toFixed(1)}% auth
+                  </span>
                   <span className="text-red-500">{m.fakePct.toFixed(1)}% fake</span>
                 </div>
                 <div className="h-2 rounded-full bg-secondary overflow-hidden">

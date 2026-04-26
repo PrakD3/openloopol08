@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!node_modules", "!.next", "!dist", "!src/components/ui/**"]
+    "include": ["**", "!node_modules", "!.next", "!dist", "!src/components/ui/**"]
   },
   "formatter": {
     "enabled": true,
@@ -41,7 +41,7 @@
   },
   "overrides": [
     {
-      "includes": ["*.test.ts", "*.test.tsx", "*.spec.ts"],
+      "include": ["*.test.ts", "*.test.tsx", "*.spec.ts"],
       "linter": {
         "rules": {
           "suspicious": { "noConsoleLog": "off" }

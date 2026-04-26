@@ -1,39 +1,50 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useTranslation } from "react-i18next";
-import { Loader2, AlertTriangle, ArrowRight, Shield } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { AgentPanel } from "@/components/analysis/AgentPanel";
-import { VerdictCard } from "@/components/analysis/VerdictCard";
-import { LocationMap } from "@/components/analysis/LocationMap";
-import { CommunityFeed } from "@/components/community/CommunityFeed";
-import { useAnalysis } from "@/hooks/useAnalysis";
-import { config } from "@/lib/config";
-import { Suspense } from "react";
+import { AgentPanel } from '@/components/analysis/AgentPanel';
+import { LocationMap } from '@/components/analysis/LocationMap';
+import { VerdictCard } from '@/components/analysis/VerdictCard';
+import { CommunityFeed } from '@/components/community/CommunityFeed';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useAnalysis } from '@/hooks/useAnalysis';
+import { config } from '@/lib/config';
+import { AlertTriangle, ArrowRight, Loader2, Shield } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { MatrixLoader } from '@/components/analysis/MatrixLoader';
 
 function AnalysisContent() {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const videoUrl = searchParams.get("url") ?? "";
-  const demoParam = searchParams.get("demo");
-  const isDemo = demoParam === null ? config.isDemo : demoParam !== "false";
+  const videoUrl = searchParams.get('url') ?? '';
+  const demoParam = searchParams.get('demo');
+  const isDemo = demoParam === null ? config.isDemo : demoParam !== 'false';
 
   const { result, isLoading, agentProgress, error, analyze } = useAnalysis();
-  const [inputUrl, setInputUrl] = useState("");
+  const [inputUrl, setInputUrl] = useState('');
+  const [showResults, setShowResults] = useState(false);
+
+  // When isLoading becomes false and result is present, wait for MatrixLoader animation
+  useEffect(() => {
+    if (!isLoading && result) {
+      // setShowResults(true) is now handled by MatrixLoader's onAnimationComplete
+    } else {
+      setShowResults(false);
+    }
+  }, [isLoading, result]);
 
   const handleNewAnalysis = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputUrl) return;
     router.push(`/analysis?url=${encodeURIComponent(inputUrl)}&demo=${isDemo}`);
   };
-  const displayedAgents = agentProgress.length > 0 ? agentProgress : result?.agents ?? [];
+  const displayedAgents = agentProgress.length > 0 ? agentProgress : (result?.agents ?? []);
 
-  // Guard against React StrictMode's intentional double-mount in development,
-  // which would fire this effect twice and create two backend jobs for one submit.
+  // Guard against React StrictMode's intentional double-mount in development
   const analyzedUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -43,9 +54,6 @@ function AnalysisContent() {
     }
   }, [videoUrl, isDemo, analyze]);
 
-  // When analysis fails, clear the ref so the user can retry the same URL.
-  // Without this, the guard above would permanently block re-analysis of a
-  // URL that previously errored.
   useEffect(() => {
     if (error) {
       analyzedUrlRef.current = null;
@@ -58,7 +66,7 @@ function AnalysisContent() {
         <div className="flex flex-col md:flex-row items-start md:items-end gap-4 mb-12">
           <div className="p-3 bg-primary border-4 border-foreground bk-shadow-md">
             <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none text-primary-foreground">
-              {t("analysis.title")}
+              {t('analysis.title')}
             </h1>
           </div>
           {videoUrl && (
@@ -89,40 +97,33 @@ function AnalysisContent() {
           </div>
 
           <div className="lg:col-span-8 space-y-8">
-            {result ? (
-              <>
+            {result && showResults ? (
+              <div className="animate-in fade-in zoom-in-95 duration-1000 slide-in-from-bottom-10">
                 <VerdictCard result={result} />
                 {result.latitude && result.longitude && (
-                  <div className="space-y-4">
+                  <div className="space-y-4 mt-8">
                     <div className="p-3 bg-secondary border-4 border-foreground bk-shadow-sm inline-block">
-                       <h3 className="text-xl font-black uppercase tracking-tighter leading-none">
-                         Geographical Verification
-                       </h3>
+                      <h3 className="text-xl font-black uppercase tracking-tighter leading-none">
+                        Geographical Verification
+                      </h3>
                     </div>
-                    <LocationMap 
-                      latitude={result.latitude} 
-                      longitude={result.longitude} 
-                      label={result.actualLocation || 'Confirmed Location'} 
+                    <LocationMap
+                      latitude={result.latitude}
+                      longitude={result.longitude}
+                      label={result.actualLocation || 'Confirmed Location'}
                     />
                   </div>
                 )}
-                <CommunityFeed />
-              </>
-            ) : isLoading ? (
-              <div className="flex flex-col items-center justify-center h-[500px] gap-8 border-4 border-foreground bg-secondary/5 bk-diagonal-lines">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary animate-ping opacity-20 border-4 border-foreground" />
-                  <Loader2 className="h-24 w-24 animate-spin text-foreground border-4 border-foreground p-4 bg-background bk-shadow-md" />
-                </div>
-                <div className="text-center space-y-2">
-                  <p className="text-3xl font-black uppercase tracking-tighter italic">
-                    Running AI pipeline
-                  </p>
-                  <p className="text-sm font-bold text-muted-foreground uppercase tracking-[0.3em]">
-                    Cross-verifying keyframes...
-                  </p>
+                <div className="mt-8">
+                  <CommunityFeed />
                 </div>
               </div>
+            ) : isLoading || (result && !showResults) ? (
+              <MatrixLoader
+                videoUrl={videoUrl}
+                isComplete={!isLoading && !!result}
+                onAnimationComplete={() => setShowResults(true)}
+              />
             ) : (
               <div className="h-[600px] border-4 border-foreground bg-secondary/5 flex flex-col items-center justify-center p-8 text-center space-y-8 bk-diagonal-lines">
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -133,12 +134,13 @@ function AnalysisContent() {
                     Ready for Analysis
                   </h2>
                   <p className="text-base font-bold text-muted-foreground uppercase tracking-widest max-w-md mx-auto">
-                    Paste a link to a disaster video from Reddit, X, or YouTube to begin forensic verification.
+                    Paste a link to a disaster video from Reddit, X, or YouTube to begin forensic
+                    verification.
                   </p>
                 </div>
-                
-                <form 
-                  onSubmit={handleNewAnalysis} 
+
+                <form
+                  onSubmit={handleNewAnalysis}
                   className="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-1000"
                 >
                   <div className="flex flex-col gap-4 p-6 bg-background border-4 border-foreground bk-shadow-lg">
@@ -148,19 +150,19 @@ function AnalysisContent() {
                       </label>
                       <Input
                         type="url"
-                        placeholder={t("home.submitPlaceholder")}
+                        placeholder={t('home.submitPlaceholder')}
                         value={inputUrl}
                         onChange={(e) => setInputUrl(e.target.value)}
                         className="text-lg h-14 bg-muted/20"
                         required
                       />
                     </div>
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       size="xl"
                       className="w-full text-xl font-black uppercase tracking-widest"
                     >
-                      {t("home.analyseButton")}
+                      {t('home.analyseButton')}
                       <ArrowRight className="ml-2 h-6 w-6" />
                     </Button>
                   </div>
