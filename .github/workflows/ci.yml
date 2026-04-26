@@ -33,7 +33,7 @@ jobs:
       - name: Biome CI check
         uses: biomejs/setup-biome@v2
         with:
-          version: latest
+          version: 1.9.4
       - run: biome ci .
 
       - name: TypeScript type check

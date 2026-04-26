@@ -3,7 +3,7 @@
 import { DEMO_VIDEOS } from '@/lib/demoData';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion, useAnimation } from 'framer-motion';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface MatrixLoaderProps {
   videoUrl: string;
@@ -66,13 +66,16 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
   };
 
   // Staggered grid origin
-  const gridOrigin = useMemo(() => [
-    Math.floor(Math.random() * GRID_SIZE),
-    Math.floor(Math.random() * GRID_SIZE)
-  ], []);
+  const gridOrigin = useMemo(
+    () => [Math.floor(Math.random() * GRID_SIZE), Math.floor(Math.random() * GRID_SIZE)],
+    []
+  );
 
   const getDistance = (row: number, col: number) => {
-    return Math.sqrt((row - gridOrigin[0]) ** 2 + (col - gridOrigin[1]) ** 2) / (GRID_SIZE * Math.sqrt(2));
+    return (
+      Math.sqrt((row - gridOrigin[0]) ** 2 + (col - gridOrigin[1]) ** 2) /
+      (GRID_SIZE * Math.sqrt(2))
+    );
   };
 
   return (
@@ -141,46 +144,50 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
                   />
 
                   {/* Interactive Staggered Grid Overlay */}
-                  <div 
+                  <div
                     className="absolute inset-0 grid gap-[1.5px] opacity-90 z-20"
-                    style={{ 
+                    style={{
                       gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
-                      gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`
+                      gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
                     }}
                   >
                     {[...Array(GRID_SIZE ** 2)].map((_, idx) => {
                       const row = Math.floor(idx / GRID_SIZE);
                       const col = idx % GRID_SIZE;
                       const dist = getDistance(row, col);
-                      
+
                       return (
                         <motion.div
                           key={idx}
                           className="bg-primary/50 border-[1px] border-primary/30 backdrop-blur-[2px] cursor-none"
                           initial={{ opacity: 0, scale: 0 }}
-                          animate={!isHovered ? {
-                            opacity: [0.3, 0.7, 0.3],
-                            scale: [0.95, 1, 0.95],
-                          } : {
-                            opacity: 0.15,
-                            scale: 0.98,
-                          }}
+                          animate={
+                            !isHovered
+                              ? {
+                                  opacity: [0.3, 0.7, 0.3],
+                                  scale: [0.95, 1, 0.95],
+                                }
+                              : {
+                                  opacity: 0.15,
+                                  scale: 0.98,
+                                }
+                          }
                           whileHover={{
                             scale: 1.5,
-                            backgroundColor: "rgba(var(--primary), 0.9)",
-                            borderColor: "rgba(var(--primary), 1)",
-                            boxShadow: "0 0 15px rgba(var(--primary), 0.8)",
+                            backgroundColor: 'rgba(var(--primary), 0.9)',
+                            borderColor: 'rgba(var(--primary), 1)',
+                            boxShadow: '0 0 15px rgba(var(--primary), 0.8)',
                             zIndex: 100,
-                            transition: { duration: 0.1 }
+                            transition: { duration: 0.1 },
                           }}
                           transition={{
                             duration: 2,
                             repeat: Number.POSITIVE_INFINITY,
                             delay: dist * 1.5,
-                            ease: "easeInOut"
+                            ease: 'easeInOut',
                           }}
                           style={{
-                            mixBlendMode: 'screen'
+                            mixBlendMode: 'screen',
                           }}
                         />
                       );
@@ -189,32 +196,35 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
 
                   {/* Platform Badge */}
                   <div className="absolute top-6 left-6 z-40 bg-foreground text-background px-4 py-2 text-xs font-black uppercase tracking-[0.2em] border-2 border-primary shadow-[0_0_20px_rgba(var(--primary),0.6)]">
-                    {videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be') ? 'Source: YouTube' : 
-                     videoUrl.includes('reddit.com') ? 'Source: Reddit' :
-                     videoUrl.includes('twitter.com') || videoUrl.includes('x.com') ? 'Source: X / Twitter' :
-                     'Source: External Link'}
+                    {videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')
+                      ? 'Source: YouTube'
+                      : videoUrl.includes('reddit.com')
+                        ? 'Source: Reddit'
+                        : videoUrl.includes('twitter.com') || videoUrl.includes('x.com')
+                          ? 'Source: X / Twitter'
+                          : 'Source: External Link'}
                   </div>
 
                   {/* Matrix Escape Elements (Flinging out on Complete) */}
                   <div className="absolute inset-0 pointer-events-none z-50">
-                     {[...Array(20)].map((_, i) => (
-                       <motion.div
-                         key={i}
-                         className="absolute w-2 h-2 bg-primary"
-                         initial={{ opacity: 0 }}
-                         exit={{
-                           opacity: [0, 1, 0],
-                           x: (Math.random() - 0.5) * 1000,
-                           y: (Math.random() - 0.5) * 1000,
-                           scale: [1, 2, 0],
-                           transition: { duration: 0.8, ease: "easeOut" }
-                         }}
-                         style={{
-                           left: `${Math.random() * 100}%`,
-                           top: `${Math.random() * 100}%`,
-                         }}
-                       />
-                     ))}
+                    {[...Array(20)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="absolute w-2 h-2 bg-primary"
+                        initial={{ opacity: 0 }}
+                        exit={{
+                          opacity: [0, 1, 0],
+                          x: (Math.random() - 0.5) * 1000,
+                          y: (Math.random() - 0.5) * 1000,
+                          scale: [1, 2, 0],
+                          transition: { duration: 0.8, ease: 'easeOut' },
+                        }}
+                        style={{
+                          left: `${Math.random() * 100}%`,
+                          top: `${Math.random() * 100}%`,
+                        }}
+                      />
+                    ))}
                   </div>
 
                   {/* Glitch Overlay */}
@@ -247,10 +257,10 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
               onAnimationComplete={onAnimationComplete}
               className="absolute inset-0 bg-primary z-[100] flex flex-col items-center justify-center"
             >
-              <motion.h2 
+              <motion.h2
                 initial={{ letterSpacing: '0.5em' }}
                 animate={{ letterSpacing: '-0.05em' }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
                 className="text-9xl font-black text-primary-foreground uppercase italic tracking-tighter"
               >
                 SUCCESS
