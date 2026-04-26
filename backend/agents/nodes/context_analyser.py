@@ -18,20 +18,60 @@ Free API (key required, free tier):
 
 import asyncio
 import base64
+import io
 import json
 import logging
-import httpx
-import io
-from PIL import Image
+import os
 from pathlib import Path
 from typing import Optional
 
+import httpx
 from langsmith import traceable
+from PIL import Image
 
 from agents.state import AgentFinding, AgentState
 from config.settings import get_llm, is_deprecated_groq_model, settings
 
+logger = logging.getLogger(__name__)
+
 # ── Audio Transcription ───────────────────────────────────────────────────────
+
+
+async def transcribe_audio_with_logging(audio_path: str, groq_api_key: str) -> tuple:
+    """
+    Returns (transcript_text, error_message).
+    Never raises — always returns a tuple so callers can decide what to do.
+    """
+    if not audio_path or not os.path.exists(audio_path):
+        logger.warning(f"[WHISPER] Audio path invalid or missing: {audio_path}")
+        return None, "audio_path_invalid"
+
+    file_size = os.path.getsize(audio_path)
+    if file_size < 1000:  # less than 1KB = silent/corrupt audio
+        logger.warning(
+            f"[WHISPER] Audio file too small ({file_size} bytes), skipping transcription"
+        )
+        return None, "audio_too_small"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            with open(audio_path, "rb") as f:
+                response = await client.post(
+                    "https://api.groq.com/openai/v1/audio/transcriptions",
+                    headers={"Authorization": f"Bearer {groq_api_key}"},
+                    files={"file": (Path(audio_path).name, f, "audio/wav")},
+                    data={"model": settings.groq_whisper_model},
+                    timeout=60.0,
+                )
+                response.raise_for_status()
+                data = response.json()
+                text = data.get("text", "")
+                transcript = text if isinstance(text, str) else str(text)
+                logger.info(f"[WHISPER] Transcription success: {len(transcript)} chars")
+                return transcript.strip(), None
+    except Exception as e:
+        logger.error(f"[WHISPER] Transcription failed: {type(e).__name__}: {e}")
+        return None, f"whisper_error: {str(e)[:120]}"
 
 
 async def _transcribe_audio(audio_path: Optional[str]) -> Optional[str]:
@@ -50,36 +90,22 @@ async def _transcribe_audio(audio_path: Optional[str]) -> Optional[str]:
         return None
 
     # ── Priority 1: Groq Whisper API ─────────────────────────────────────────
-    # Groq hosts Whisper Large v3 / v3-Turbo as a cloud API.
-    # Same request format as OpenAI, just a different base URL + key.
-    # This avoids the ~minutes-long local model download on cold start.
     if settings.whisper_use_groq and settings.groq_api_key:
         print(
             f"[Context/Whisper] Using Groq API ({settings.groq_whisper_model}) "
             f"for transcription...",
             flush=True,
         )
-        try:
-            async with httpx.AsyncClient() as client:
-                with open(audio_path, "rb") as f:
-                    response = await client.post(
-                        "https://api.groq.com/openai/v1/audio/transcriptions",
-                        headers={"Authorization": f"Bearer {settings.groq_api_key}"},
-                        files={"file": (Path(audio_path).name, f, "audio/wav")},
-                        data={"model": settings.groq_whisper_model},
-                        timeout=60.0,
-                    )
-                    response.raise_for_status()
-                    data = response.json()
-                    text = data.get("text", "")
-                    print(
-                        f"[Context/Whisper] Groq transcription succeeded ({len(text)} chars)",
-                        flush=True,
-                    )
-                    return text
-        except Exception as e:
+        transcript, error = await transcribe_audio_with_logging(audio_path, settings.groq_api_key)
+        if transcript is not None:
             print(
-                f"[Context/Whisper] Groq API failed: {e} — falling back to next method",
+                f"[Context/Whisper] Groq transcription succeeded ({len(transcript)} chars)",
+                flush=True,
+            )
+            return transcript
+        else:
+            print(
+                f"[Context/Whisper] Groq API failed: {error} — falling back to next method",
                 flush=True,
             )
 
@@ -120,64 +146,95 @@ async def _transcribe_audio(audio_path: Optional[str]) -> Optional[str]:
 
 async def _extract_ocr_text_online(keyframes: list[str]) -> str:
     """
-    Extract text from keyframes using Vertex AI Gemini (Online OCR).
-    This uses the user's $1,000 credits and avoids Groq rate limits.
+    Extract text from keyframes using Groq Vision.
+    Targets chyrons, lower thirds, watermarks, channel names, timestamps,
+    location overlays, breaking news banners, and street signs.
+    Returns concatenated text from all frames, deduplicated.
     """
-    if not keyframes or not settings.google_cloud_project:
+    if not keyframes or not settings.groq_api_key:
         return ""
 
-    # We take the 1st and middle frames
-    indices = [0, len(keyframes) // 2] if len(keyframes) > 1 else [0]
-    target_frames = [keyframes[i] for i in indices]
-    
-    all_text = []
-    try:
-        from langchain_google_vertexai import ChatVertexAI
-        
-        llm = ChatVertexAI(
-            model_name=settings.gemini_model,
-            project=settings.google_cloud_project,
-            location=settings.google_cloud_location,
-            temperature=0.0
-        )
+    # Use top 3 frames only (middle frames tend to have clearest overlays)
+    frames_to_check = (
+        keyframes[:3]
+        if len(keyframes) <= 3
+        else [
+            keyframes[0],
+            keyframes[len(keyframes) // 2],
+            keyframes[-1],
+        ]
+    )
 
-        async def process_frame(frame_path):
-            try:
-                # Resize image
-                img = Image.open(frame_path)
-                if img.mode != "RGB":
-                    img = img.convert("RGB")
-                img.thumbnail((1024, 1024))
-                
-                buffer = io.BytesIO()
-                img.save(buffer, format="JPEG", quality=85)
-                encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                
-                from langchain_core.messages import HumanMessage
-                message = HumanMessage(
-                    content=[
-                        {"type": "text", "text": "List all visible text in this image, including subtitles, headlines, or signs. Return ONLY the text, separated by spaces."},
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{encoded}"},
-                        },
-                    ]
+    all_text_chunks = []
+
+    for frame_path in frames_to_check:
+        if not Path(frame_path).exists():
+            logger.warning(f"[OCR] Frame not found: {frame_path}")
+            continue
+
+        try:
+            with open(frame_path, "rb") as f:
+                image_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                response = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {settings.groq_api_key}"},
+                    json={
+                        "model": settings.groq_vision_model,
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"},
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": (
+                                            "Extract ALL visible text from this image. "
+                                            "Include: news tickers, lower third banners, chyrons, "
+                                            "channel watermarks (e.g. @CHANNEL, network names), "
+                                            "timestamps, location overlays, street signs, "
+                                            "captions, breaking news banners, and any other text. "
+                                            "Output ONLY the extracted text, one item per line. "
+                                            "If no text is visible, output: [no text detected]"
+                                        ),
+                                    },
+                                ],
+                            }
+                        ],
+                        "max_tokens": 300,
+                    },
                 )
-                
-                response = await asyncio.wait_for(llm.ainvoke([message]), timeout=30.0)
-                return response.content.strip()
-            except Exception as e:
-                print(f"[Context/VertexOCR] Frame {frame_path} failed: {e}")
-                return ""
+                response.raise_for_status()
+                data = response.json()
+                text = data["choices"][0]["message"]["content"].strip()
+                if text and text != "[no text detected]":
+                    all_text_chunks.append(text)
+                    logger.info(f"[OCR] Frame {Path(frame_path).name}: extracted {len(text)} chars")
 
-        # Run all frames in parallel
-        results = await asyncio.gather(*[process_frame(f) for f in target_frames])
-        all_text = [r for r in results if r]
-        
-    except Exception as e:
-        print(f"[Context/VertexOCR] OCR process failed: {e}")
-    
-    return " | ".join(all_text)
+        except Exception as e:
+            logger.error(f"[OCR] Vision OCR failed for {frame_path}: {e}")
+            continue
+
+    if not all_text_chunks:
+        return ""
+
+    # Deduplicate lines across frames
+    seen = set()
+    deduped = []
+    for chunk in all_text_chunks:
+        for line in chunk.splitlines():
+            line = line.strip()
+            if line and line not in seen:
+                seen.add(line)
+                deduped.append(line)
+
+    result = "\n".join(deduped)
+    logger.info(f"[OCR] Final OCR result: {len(deduped)} unique lines")
+    return result
 
 
 # ── GDACS Disaster Database ───────────────────────────────────────────────────
@@ -356,14 +413,18 @@ Based only on the above, answer in JSON (no markdown):
 
 
 async def _analyse_context_with_llm(
-    transcript: str, ocr_text: str, gdacs_events: list, claimed_location: str, keyframes: list[str] = None
+    transcript: str,
+    ocr_text: str,
+    gdacs_events: list,
+    claimed_location: str,
+    keyframes: list[str] = None,
 ) -> dict:
     """Call the orchestrator LLM to synthesise context findings."""
     try:
         # Use a vision-capable model if in online mode
         model_name = settings.groq_orchestrator_model
         is_vision = False
-        
+
         # Always use cloud vision if we have a Groq key and frames
         if settings.groq_api_key and keyframes:
             model_name = settings.groq_vision_model
@@ -381,7 +442,7 @@ async def _analyse_context_with_llm(
                 for e in gdacs_events[:5]
             ]
         )
-        
+
         prompt_text = CONTEXT_PROMPT.format(
             transcript=transcript[:1000] if transcript else "No audio transcript",
             ocr_text=ocr_text[:500] if ocr_text else "No on-screen text detected",
@@ -396,18 +457,18 @@ async def _analyse_context_with_llm(
             if img.mode != "RGB":
                 img = img.convert("RGB")
             img.thumbnail((768, 768))
-            
+
             buffer = io.BytesIO()
             img.save(buffer, format="JPEG", quality=85)
             encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
-            
+
             print(f"[Context/LLM] Using Groq Vision ({model_name}) with representative frame...")
             if is_deprecated_groq_model(model_name):
                 print(
                     f"[Context/LLM] WARNING: configured Groq vision model {model_name!r} is deprecated.",
                     flush=True,
                 )
-            
+
             # We use httpx directly for vision since ChatGroq wrapper might not handle multi-modal perfectly yet
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -466,6 +527,19 @@ async def _analyse_context_with_llm(
 # ── Main Entry Point ──────────────────────────────────────────────────────────
 
 
+def format_key_flags(raw_flags: list[str]) -> list[str]:
+    """
+    Convert internal error codes to user-readable flags.
+    Raw API error strings must never reach the frontend.
+    """
+    flag_map = {
+        "API_RESPONSE_ERROR_CONTEXT_ANALYSER": "⚠️ Context verification incomplete — partial analysis",
+        "API_RESPONSE_ERROR_SOURCE_HUNTER": "⚠️ Source tracing incomplete",
+        "API_RESPONSE_ERROR_DEEPFAKE": "⚠️ Deepfake analysis incomplete",
+    }
+    return [flag_map.get(f, f) for f in raw_flags if f]
+
+
 @traceable(name="context_analyser")
 async def context_analyser_node(state: AgentState) -> AgentFinding:
     """
@@ -476,9 +550,7 @@ async def context_analyser_node(state: AgentState) -> AgentFinding:
     keyframes = state.get("keyframes", [])
     audio_path = state.get("audio_path")
     claimed_location = (
-        state.get("claimed_location")
-        or state.get("metadata", {}).get("location")
-        or "Unknown"
+        state.get("claimed_location") or state.get("metadata", {}).get("location") or "Unknown"
     )
     print(
         f"[AGENT] context_analyser: keyframes={len(keyframes)} "
@@ -502,6 +574,19 @@ async def context_analyser_node(state: AgentState) -> AgentFinding:
         f"[AGENT] context_analyser: OCR chars={len(ocr_text or '')} "
         f"transcript chars={len(transcript or '')} gdacs_events={len(gdacs_events)}",
         flush=True,
+    )
+
+    # Log OCR result
+    logger.info(f"[CONTEXT] OCR extracted: {ocr_text[:200] if ocr_text else 'nothing'}")
+
+    # Build transcript section with graceful None handling
+    transcript_section = (
+        f"AUDIO TRANSCRIPT:\n{transcript}"
+        if transcript
+        else "AUDIO TRANSCRIPT: [Unavailable — transcription failed or video has no speech]"
+    )
+    ocr_section = (
+        f"ON-SCREEN TEXT (OCR):\n{ocr_text}" if ocr_text else "ON-SCREEN TEXT: [None detected]"
     )
 
     # Check claims in transcript

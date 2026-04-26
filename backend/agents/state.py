@@ -7,6 +7,7 @@ from typing_extensions import TypedDict
 @dataclass
 class ModelScore:
     """Per-model deepfake detection result."""
+
     model_name: str
     authentic_pct: float
     fake_pct: float
@@ -40,7 +41,9 @@ class AgentState(TypedDict):
     audio_path: Optional[str]
     metadata: Dict
     transcript: Optional[str]
+    transcript_error: Optional[str]  # reason if transcription failed
     ocr_text: Optional[str]
+    ocr_error: Optional[str]  # reason if OCR failed
 
     # Agent results
     deepfake_result: Optional[AgentFinding]
@@ -64,10 +67,18 @@ class AgentState(TypedDict):
 
     # New fields
     disaster_type: Optional[str]
-    sos_region: Optional[Dict]   # populated by orchestrator when verdict='real'
+    sos_region: Optional[Dict]  # populated by orchestrator when verdict='real'
 
     # Notification result
     notification_result: Optional[dict]  # Output from notification_node
 
     # War/conflict flag (from context analyser)
     is_war_or_conflict: Optional[bool]
+
+    # Extended metadata fields
+    platform_metadata: Optional[dict]  # raw yt-dlp output
+    reddit_metadata: Optional[dict]  # reddit API output (None for non-reddit)
+    uploader_intelligence: Optional[dict]  # Groq-generated uploader credibility report
+    reverse_search_result: Optional[dict]  # Google Vision reverse search result
+    comments_raw: Optional[list]  # raw top comments
+    comment_intelligence: Optional[dict]  # Groq-extracted comment intelligence
