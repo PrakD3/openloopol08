@@ -141,7 +141,13 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
                   />
 
                   {/* Interactive Staggered Grid Overlay */}
-                  <div className="absolute inset-0 grid grid-cols-[repeat(15,1fr)] grid-rows-[repeat(15,1fr)] gap-[1px] opacity-60">
+                  <div 
+                    className="absolute inset-0 grid gap-[1px] opacity-80 z-20"
+                    style={{ 
+                      gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+                      gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`
+                    }}
+                  >
                     {[...Array(GRID_SIZE ** 2)].map((_, idx) => {
                       const row = Math.floor(idx / GRID_SIZE);
                       const col = idx % GRID_SIZE;
@@ -150,20 +156,23 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
                       return (
                         <motion.div
                           key={idx}
-                          className="bg-primary/20 border-[0.5px] border-primary/10"
+                          className="bg-primary/40 border-[0.5px] border-primary/20 backdrop-blur-[1px]"
                           initial={{ opacity: 0, scale: 0 }}
                           animate={!isHovered ? {
-                            opacity: [0.1, 0.4, 0.1],
-                            scale: [0.8, 1, 0.8],
+                            opacity: [0.2, 0.6, 0.2],
+                            scale: [0.9, 1, 0.9],
                           } : {
-                            opacity: 0.05,
-                            scale: 0.9,
+                            opacity: 0.1,
+                            scale: 0.95,
                           }}
                           transition={{
                             duration: 2,
                             repeat: Number.POSITIVE_INFINITY,
                             delay: dist * 1.5,
                             ease: "easeInOut"
+                          }}
+                          style={{
+                            mixBlendMode: 'screen'
                           }}
                         />
                       );
