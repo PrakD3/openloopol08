@@ -45,7 +45,7 @@ export function SOSMap({ sosRegion }: SOSMapProps) {
 
       // Fix default icon paths broken by webpack
       // @ts-expect-error leaflet internals
-      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.prototype._getIconUrl = undefined;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
         iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -68,7 +68,7 @@ export function SOSMap({ sosRegion }: SOSMapProps) {
       }).addTo(map);
 
       // Impact radius circle
-      const circle = L.circle([sosRegion.lat, sosRegion.lng], {
+      const _circle = L.circle([sosRegion.lat, sosRegion.lng], {
         radius: sosRegion.radiusKm * 1000, // convert km → metres
         color: sosRegion.color,
         fillColor: sosRegion.color,

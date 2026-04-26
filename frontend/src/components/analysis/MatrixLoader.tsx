@@ -2,7 +2,7 @@
 
 import { DEMO_VIDEOS } from '@/lib/demoData';
 import { cn } from '@/lib/utils';
-import { AnimatePresence, motion, useAnimation } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 
 interface MatrixLoaderProps {
@@ -17,7 +17,6 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [isPortrait, setIsPortrait] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const controls = useAnimation();
 
   useEffect(() => {
     const fetchMetadata = async () => {
@@ -32,7 +31,7 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
       const ytMatch = videoUrl.match(
         /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?(?:embed\/)?(?:v\/)?(?:shorts\/)?([^?&"'>]+)/
       );
-      if (ytMatch && ytMatch[1]) {
+      if (ytMatch?.[1]) {
         setThumbnail(`https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`);
         return;
       }
@@ -50,7 +49,7 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
         } else {
           setThumbnail('/images/forensic-placeholder.png');
         }
-      } catch (err) {
+      } catch (_err) {
         setThumbnail('/images/forensic-placeholder.png');
       }
     };
@@ -85,7 +84,8 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
         <div
           className="w-full h-full"
           style={{
-            backgroundImage: `linear-gradient(to right, #333 1px, transparent 1px), linear-gradient(to bottom, #333 1px, transparent 1px)`,
+            backgroundImage:
+              'linear-gradient(to right, #333 1px, transparent 1px), linear-gradient(to bottom, #333 1px, transparent 1px)',
             backgroundSize: '30px 30px',
           }}
         />
@@ -103,7 +103,8 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
           ease: 'linear',
         }}
         style={{
-          backgroundImage: `radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.6) 100%)`,
+          backgroundImage:
+            'radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.6) 100%)',
         }}
       />
 
@@ -158,6 +159,7 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
 
                       return (
                         <motion.div
+                          // biome-ignore lint/suspicious/noArrayIndexKey: grid index is stable
                           key={idx}
                           className="bg-primary/50 border-[1px] border-primary/30 backdrop-blur-[2px] cursor-none"
                           initial={{ opacity: 0, scale: 0 }}
@@ -209,7 +211,8 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
                   <div className="absolute inset-0 pointer-events-none z-50">
                     {[...Array(20)].map((_, i) => (
                       <motion.div
-                        key={i}
+                        // biome-ignore lint/suspicious/noArrayIndexKey: static list
+                        key={`particle-${i}`}
                         className="absolute w-2 h-2 bg-primary"
                         initial={{ opacity: 0 }}
                         exit={{
@@ -277,18 +280,19 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
       <div className="absolute inset-0 z-5 pointer-events-none">
         {[...Array(12)].map((_, i) => (
           <motion.div
-            key={i}
+            // biome-ignore lint/suspicious/noArrayIndexKey: static list
+            key={`glitch-${i}`}
             className="absolute bg-primary/5 border border-primary/10"
             initial={{
               width: Math.random() * 150 + 50,
               height: Math.random() * 30 + 10,
-              x: Math.random() * 100 + '%',
-              y: Math.random() * 100 + '%',
+              x: `${Math.random() * 100}%`,
+              y: `${Math.random() * 100}%`,
               opacity: 0,
             }}
             animate={{
               opacity: [0, 0.3, 0],
-              x: [null, (Math.random() - 0.5) * 300 + 'px'],
+              x: [null, `${(Math.random() - 0.5) * 300}px`],
             }}
             transition={{
               duration: Math.random() * 4 + 3,

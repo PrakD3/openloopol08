@@ -145,10 +145,14 @@ function AnalysisContent() {
                 >
                   <div className="flex flex-col gap-4 p-6 bg-background border-4 border-foreground bk-shadow-lg">
                     <div className="space-y-2 text-left mb-2">
-                      <label className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
+                      <label
+                        htmlFor="source-url"
+                        className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground"
+                      >
                         Target Source URL
                       </label>
                       <Input
+                        id="source-url"
                         type="url"
                         placeholder={t('home.submitPlaceholder')}
                         value={inputUrl}

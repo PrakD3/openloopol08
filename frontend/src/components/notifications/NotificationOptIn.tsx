@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
 type RegistrationState =
   | 'idle'
@@ -23,7 +22,6 @@ type RegistrationState =
   | 'error';
 
 export function NotificationOptIn() {
-  const { t } = useTranslation();
   const [state, setState] = useState<RegistrationState>('idle');
   const [phone, setPhone] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);

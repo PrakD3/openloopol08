@@ -15,7 +15,6 @@ const VerdictIcon = ({ verdict }: { verdict: VerdictType }) => {
     case 'misleading':
     case 'ai-generated':
       return <XCircle className="h-4 w-4 text-destructive" />;
-    case 'unverified':
     default:
       return <HelpCircle className="h-4 w-4 text-muted-foreground" />;
   }

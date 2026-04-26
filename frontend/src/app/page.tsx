@@ -55,6 +55,7 @@ export default function HomePage() {
                 <div className="grid gap-3">
                   {DEMO_VIDEOS.map((video) => (
                     <button
+                      type="button"
                       key={video.id}
                       onClick={() => setSelectedDemo(video.url)}
                       className={cn(

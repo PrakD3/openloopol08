@@ -153,9 +153,9 @@ FastAPI Backend [CORE-LOGIC]
                 'Transcription: OpenAI Whisper API',
                 'Reverse Search: Google Vision + TinEye',
                 'Requires API keys — see .env.example',
-              ].map((item, i) => (
+              ].map((item) => (
                 <div
-                  key={i}
+                  key={item}
                   className="flex items-center gap-3 font-black text-sm uppercase tracking-tight"
                 >
                   <div className="h-2 w-2 bg-foreground" /> {item}

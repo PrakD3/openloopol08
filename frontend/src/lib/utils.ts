@@ -17,7 +17,6 @@ export function getVerdictColor(verdict: string): string {
       return 'text-destructive';
     case 'ai-generated':
       return 'text-primary';
-    case 'unverified':
     default:
       return 'text-muted-foreground';
   }
@@ -31,7 +30,6 @@ export function getVerdictBg(verdict: string): string {
       return 'bg-destructive/10 border-destructive/30';
     case 'ai-generated':
       return 'bg-primary/10 border-primary/30';
-    case 'unverified':
     default:
       return 'bg-muted border-border';
   }

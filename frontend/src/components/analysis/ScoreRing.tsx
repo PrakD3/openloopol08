@@ -30,6 +30,7 @@ export function ScoreRing({
         style={{ width: size + 8, height: size + 8 }}
       >
         <svg width={size} height={size} className="rotate-[-90deg]">
+          <title>{label} score ring</title>
           <circle
             cx={size / 2}
             cy={size / 2}

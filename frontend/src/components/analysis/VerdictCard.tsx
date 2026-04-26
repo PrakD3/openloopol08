@@ -132,9 +132,9 @@ export function VerdictCard({ result }: VerdictCardProps) {
                 {t('analysis.keyFlags')}
               </p>
               <div className="flex flex-wrap gap-2">
-                {displayFlags(result.keyFlags).map((flag, i) => (
+                {displayFlags(result.keyFlags).map((flag) => (
                   <div
-                    key={i}
+                    key={flag}
                     className="flex items-center gap-2 text-xs font-black uppercase tracking-tighter bg-background border-2 border-foreground px-3 py-1.5 bk-shadow-sm"
                   >
                     <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
@@ -146,7 +146,9 @@ export function VerdictCard({ result }: VerdictCardProps) {
           )}
 
           {/* Per-model deepfake breakdown */}
-          {hasModelScores && <ModelBreakdown modelScores={deepfakeAgent!.modelScores!} />}
+          {hasModelScores && deepfakeAgent?.modelScores && (
+            <ModelBreakdown modelScores={deepfakeAgent.modelScores} />
+          )}
 
           {/* Metadata grid */}
           <div className="grid grid-cols-2 gap-3 text-xs">
@@ -246,8 +248,8 @@ export function VerdictCard({ result }: VerdictCardProps) {
                 <div>
                   <p className="text-xs font-semibold text-destructive mb-1">Red Flags</p>
                   <div className="flex flex-wrap gap-1">
-                    {result.uploaderIntelligence.redFlags.map((f, i) => (
-                      <Badge key={i} variant="destructive" className="text-xs">
+                    {result.uploaderIntelligence.redFlags.map((f) => (
+                      <Badge key={f} variant="destructive" className="text-xs">
                         {f}
                       </Badge>
                     ))}
@@ -258,8 +260,8 @@ export function VerdictCard({ result }: VerdictCardProps) {
                 <div>
                   <p className="text-xs font-semibold text-accent mb-1">Trust Signals</p>
                   <div className="flex flex-wrap gap-1">
-                    {result.uploaderIntelligence.trustSignals.map((s, i) => (
-                      <Badge key={i} variant="real" className="text-xs">
+                    {result.uploaderIntelligence.trustSignals.map((s) => (
+                      <Badge key={s} variant="real" className="text-xs">
                         {s}
                       </Badge>
                     ))}
@@ -318,8 +320,8 @@ export function VerdictCard({ result }: VerdictCardProps) {
                 <div>
                   <p className="text-xs font-semibold mb-1">Matching pages:</p>
                   <ul className="space-y-1">
-                    {result.reverseSearch.matchingPages.slice(0, 5).map((page, i) => (
-                      <li key={i} className="text-xs">
+                    {result.reverseSearch.matchingPages.slice(0, 5).map((page) => (
+                      <li key={page.url} className="text-xs">
                         <a
                           href={page.url}
                           target="_blank"

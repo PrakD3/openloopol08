@@ -149,9 +149,9 @@ export function AgentPanel({ agents }: AgentPanelProps) {
                     {/* Findings */}
                     {agent.findings.length > 0 && (
                       <ul className="space-y-2">
-                        {agent.findings.map((finding, i) => (
+                        {agent.findings.map((finding) => (
                           <li
-                            key={i}
+                            key={finding}
                             className="text-xs text-foreground font-medium flex items-start gap-2"
                           >
                             <span className="text-success font-black mt-0.5">●</span>

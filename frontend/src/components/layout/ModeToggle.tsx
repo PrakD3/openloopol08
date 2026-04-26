@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useMode } from '@/hooks/useMode';
 
 export function ModeToggle() {
-  const { appMode, inferenceMode, toggleAppMode } = useMode();
+  const { appMode, toggleAppMode } = useMode();
 
   return (
     <div className="flex items-center gap-3">
