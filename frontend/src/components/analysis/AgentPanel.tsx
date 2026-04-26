@@ -88,7 +88,7 @@ export function AgentPanel({ agents }: AgentPanelProps) {
       </h3>
       
       <Accordion type="multiple" className="space-y-4">
-        {agents.map((agent) => {
+        {agents.map((agent, index) => {
           const isDeepfake = agent.agentId === "deepfake-detector" || agent.agentId === "deepfake_detector";
           const isSource = agent.agentId === "source-hunter" || agent.agentId === "source_hunter";
           const scorePct = agent.score ?? 0;
@@ -100,28 +100,36 @@ export function AgentPanel({ agents }: AgentPanelProps) {
 
           return (
             <AccordionItem key={agent.agentId} value={agent.agentId} className="border-3 border-foreground shadow-[4px_4px_0px_hsl(var(--shadow-color))]">
-              <AccordionTrigger className="hover:no-underline py-3">
-                <div className="flex items-center gap-3 flex-1 overflow-hidden">
-                  <AgentStatusIcon status={agent.status} />
-                  <span className="text-xs font-black uppercase tracking-tight text-left truncate">
-                    {agent.agentName}
+              <AccordionTrigger className="hover:no-underline py-3 px-4">
+                <div className="flex items-center gap-2 flex-1">
+                  <div className="text-foreground">
+                    <AgentStatusIcon status={agent.status} />
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-tight text-left text-foreground">
+                    Agent Analysis {index + 1} ({
+                      agent.agentId.includes("deepfake") ? "DEEPFAKE" :
+                      agent.agentId.includes("source") ? "SOURCE" :
+                      agent.agentId.includes("context") ? "CONTEXT" :
+                      agent.agentId.includes("geo") ? "GEOLOCATION" :
+                      agent.agentName || "GENERAL"
+                    })
                   </span>
-                  
-                  {agent.score !== null && agent.score !== undefined && (
-                    <div className="ml-auto mr-2 shrink-0">
-                      <Badge
-                        variant={badgeDestructive ? "destructive" : "real"}
-                        className="text-[9px] px-1.5 py-0 border-2"
-                      >
-                        {getSourceLabel(
-                          agent.agentId,
-                          scorePct,
-                          agent.findings.length,
-                        )}
-                      </Badge>
-                    </div>
-                  )}
                 </div>
+                
+                {agent.score !== null && agent.score !== undefined && (
+                  <div className="shrink-0 mr-2">
+                    <Badge
+                      variant={badgeDestructive ? "destructive" : "real"}
+                      className="text-[9px] px-1.5 py-0.5 border-2 font-black bg-background text-foreground"
+                    >
+                      {getSourceLabel(
+                        agent.agentId,
+                        scorePct,
+                        agent.findings.length,
+                      )}
+                    </Badge>
+                  </div>
+                )}
               </AccordionTrigger>
 
               <AccordionContent className="bg-background pt-4 border-t-3 border-foreground">

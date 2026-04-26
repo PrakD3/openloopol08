@@ -57,10 +57,10 @@
   --shadow-bk: var(--shadow-offset) var(--shadow-offset) 0px hsl(var(--shadow-color));
 }
 
-/* BoldKit - Serious Industrial Design System */
+/* BoldKit - Clinical Verification Design System (White/Grey/Lime) */
 :root {
-  --background: 210 20% 98%;
-  --foreground: 222 47% 11%;
+  --background: 210 20% 98%; 
+  --foreground: 222 47% 11%; 
 
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
@@ -68,23 +68,23 @@
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
 
-  --primary: 222 47% 11%;
+  --primary: 222 47% 11%; 
   --primary-foreground: 210 20% 98%;
 
-  --secondary: 215 25% 27%;
-  --secondary-foreground: 210 20% 98%;
+  --secondary: 210 20% 92%; 
+  --secondary-foreground: 222 47% 11%;
 
-  --accent: 38 92% 50%;
-  --accent-foreground: 222 47% 11%;
+  --accent: 84 81% 44%; /* Toxic Lime Accent */
+  --accent-foreground: 222 47% 11%; /* Keep it dark for readability */
 
-  --muted: 210 40% 96.1%;
+  --muted: 210 20% 94%;
   --muted-foreground: 215.4 16.3% 46.9%;
 
-  --destructive: 0 84% 60%;
+  --destructive: 0 72% 51%; 
   --destructive-foreground: 210 40% 98%;
 
-  --success: 165 80% 35%; /* Muted Industrial Green */
-  --success-foreground: 210 40% 98%;
+  --success: 84 81% 44%; /* Same as Lime */
+  --success-foreground: 222 47% 11%;
 
   --border: 222 47% 11%;
   --input: 222 47% 11%;
@@ -95,17 +95,17 @@
   --shadow-color: 222 47% 11%;
   --shadow-offset: 4px;
 
-  /* Industrial Tones */
-  --neon-pink: 215 25% 27%; /* Now Dark Slate */
-  --neon-green: 217 33% 17%; /* Now Deep Navy */
-  --neon-blue: 215 16% 47%; /* Now Steel Zinc */
-  --neon-orange: 25 30% 45%; /* Now Muted Terra */
-  --neon-purple: 222 47% 11%; /* Now Pitch */
+  /* Clinical Palette */
+  --neon-pink: 222 47% 11%; 
+  --neon-green: 84 81% 44%; 
+  --neon-blue: 215 16% 47%; 
+  --neon-orange: 84 81% 35%; 
+  --neon-purple: 222 47% 11%; 
 
-  --clash-1: 0 72% 51%; /* Alert Red */
-  --clash-2: 217 33% 17%; /* Deep Navy */
-  --clash-3: 215 25% 27%; /* Slate */
-  --clash-4: 210 40% 96%; /* Soft Zinc */
+  --clash-1: 84 81% 44%; 
+  --clash-2: 217 33% 17%; 
+  --clash-3: 210 20% 92%; 
+  --clash-4: 0 0% 100%;   
 }
 
 .dark {
@@ -118,19 +118,19 @@
   --popover: 222 47% 15%;
   --popover-foreground: 210 20% 98%;
 
-  --primary: 210 20% 98%;
+  --primary: 84 81% 44%; 
   --primary-foreground: 222 47% 11%;
 
   --secondary: 217 33% 17%;
   --secondary-foreground: 210 20% 98%;
 
-  --accent: 38 92% 50%;
+  --accent: 84 81% 44%;
   --accent-foreground: 222 47% 11%;
 
   --muted: 217 33% 17%;
   --muted-foreground: 215 20% 65%;
 
-  --destructive: 0 84% 60%;
+  --destructive: 0 72% 51%;
   --destructive-foreground: 210 20% 98%;
 
   --border: 210 20% 98%;
