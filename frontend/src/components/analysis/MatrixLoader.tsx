@@ -142,7 +142,7 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
 
                   {/* Interactive Staggered Grid Overlay */}
                   <div 
-                    className="absolute inset-0 grid gap-[1px] opacity-80 z-20"
+                    className="absolute inset-0 grid gap-[1.5px] opacity-90 z-20"
                     style={{ 
                       gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
                       gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`
@@ -156,14 +156,22 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
                       return (
                         <motion.div
                           key={idx}
-                          className="bg-primary/40 border-[0.5px] border-primary/20 backdrop-blur-[1px]"
+                          className="bg-primary/50 border-[1px] border-primary/30 backdrop-blur-[2px] cursor-none"
                           initial={{ opacity: 0, scale: 0 }}
                           animate={!isHovered ? {
-                            opacity: [0.2, 0.6, 0.2],
-                            scale: [0.9, 1, 0.9],
+                            opacity: [0.3, 0.7, 0.3],
+                            scale: [0.95, 1, 0.95],
                           } : {
-                            opacity: 0.1,
-                            scale: 0.95,
+                            opacity: 0.15,
+                            scale: 0.98,
+                          }}
+                          whileHover={{
+                            scale: 1.5,
+                            backgroundColor: "rgba(var(--primary), 0.9)",
+                            borderColor: "rgba(var(--primary), 1)",
+                            boxShadow: "0 0 15px rgba(var(--primary), 0.8)",
+                            zIndex: 100,
+                            transition: { duration: 0.1 }
                           }}
                           transition={{
                             duration: 2,
@@ -186,13 +194,6 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
                      videoUrl.includes('twitter.com') || videoUrl.includes('x.com') ? 'Source: X / Twitter' :
                      'Source: External Link'}
                   </div>
-
-                  {/* Scanning Line */}
-                  <motion.div
-                    className="absolute top-0 left-0 w-full h-2 bg-primary z-30 shadow-[0_0_30px_rgba(var(--primary),1)] opacity-80"
-                    animate={{ top: ['0%', '100%'] }}
-                    transition={{ duration: 4, repeat: Number.POSITIVE_INFINITY, ease: 'linear' }}
-                  />
 
                   {/* Matrix Escape Elements (Flinging out on Complete) */}
                   <div className="absolute inset-0 pointer-events-none z-50">
