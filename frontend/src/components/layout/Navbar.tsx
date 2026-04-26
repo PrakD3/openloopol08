@@ -22,7 +22,13 @@ export function Navbar() {
     { href: '/how-it-works', label: t('nav.howItWorks') },
   ];
 
-  const languages = ['en', 'hi', 'ta', 'ar', 'es'];
+  const languages = [
+    { code: 'en', label: 'ENGLISH' },
+    { code: 'hi', label: 'HINDI' },
+    { code: 'ta', label: 'TAMIL' },
+    { code: 'ar', label: 'ARABIC' },
+    { code: 'es', label: 'SPANISH' },
+  ];
 
   return (
     <nav className="sticky top-0 z-50 border-b-4 border-foreground bg-background bk-noise">
@@ -54,15 +60,14 @@ export function Navbar() {
             <select
               value={i18n.language}
               onChange={(e) => i18n.changeLanguage(e.target.value)}
-              className="text-xs font-black bg-background border-3 border-foreground px-3 py-1 bk-shadow-sm focus:outline-none"
+              className="text-xs font-black bg-background border-3 border-foreground px-3 py-1.5 bk-shadow-sm focus:outline-none min-w-[120px]"
             >
               {languages.map((lang) => (
-                <option key={lang} value={lang}>
-                  {lang.toUpperCase()}
+                <option key={lang.code} value={lang.code}>
+                  {lang.label}
                 </option>
               ))}
             </select>
-            <ModeToggle />
             <Button
               variant="outline"
               size="icon"
