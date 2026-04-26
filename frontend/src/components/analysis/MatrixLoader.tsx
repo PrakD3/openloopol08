@@ -2,8 +2,8 @@
 
 import { DEMO_VIDEOS } from '@/lib/demoData';
 import { cn } from '@/lib/utils';
-import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { AnimatePresence, motion, useAnimation } from 'framer-motion';
+import { useEffect, useState, useMemo } from 'react';
 
 interface MatrixLoaderProps {
   videoUrl: string;
@@ -11,9 +11,13 @@ interface MatrixLoaderProps {
   onAnimationComplete?: () => void;
 }
 
+const GRID_SIZE = 15;
+
 export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: MatrixLoaderProps) {
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [isPortrait, setIsPortrait] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const controls = useAnimation();
 
   useEffect(() => {
     const fetchMetadata = async () => {
@@ -61,55 +65,68 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
     setIsPortrait(naturalHeight > naturalWidth);
   };
 
+  // Staggered grid origin
+  const gridOrigin = useMemo(() => [
+    Math.floor(Math.random() * GRID_SIZE),
+    Math.floor(Math.random() * GRID_SIZE)
+  ], []);
+
+  const getDistance = (row: number, col: number) => {
+    return Math.sqrt((row - gridOrigin[0]) ** 2 + (col - gridOrigin[1]) ** 2) / (GRID_SIZE * Math.sqrt(2));
+  };
+
   return (
-    <div className="relative w-full h-[500px] bg-black overflow-hidden border-4 border-foreground bk-shadow-lg flex items-center justify-center">
+    <div className="relative w-full h-[600px] bg-black overflow-hidden border-4 border-foreground bk-shadow-lg flex items-center justify-center">
       {/* Background Matrix Grid */}
-      <div className="absolute inset-0 z-0 opacity-20">
+      <div className="absolute inset-0 z-0 opacity-10">
         <div
           className="w-full h-full"
           style={{
-            backgroundImage: `linear-gradient(to right, #444 1px, transparent 1px), linear-gradient(to bottom, #444 1px, transparent 1px)`,
-            backgroundSize: '20px 20px',
+            backgroundImage: `linear-gradient(to right, #333 1px, transparent 1px), linear-gradient(to bottom, #333 1px, transparent 1px)`,
+            backgroundSize: '30px 30px',
           }}
         />
       </div>
 
       {/* Dynamic Grid Box Overlay */}
       <motion.div
-        className="absolute inset-0 z-10 border-2 border-primary/30"
+        className="absolute inset-0 z-10 border-2 border-primary/20"
         animate={{
           backgroundPosition: ['0% 0%', '100% 100%'],
         }}
         transition={{
-          duration: 20,
+          duration: 30,
           repeat: Number.POSITIVE_INFINITY,
           ease: 'linear',
         }}
         style={{
-          backgroundImage: `radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%)`,
+          backgroundImage: `radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.6) 100%)`,
         }}
       />
 
-      {/* Thumbnail Container */}
-      <div className="relative z-20 w-full h-full flex items-center justify-center p-4">
+      {/* Main Content Area */}
+      <div className="relative z-20 w-full h-full flex items-center justify-center p-8">
         <AnimatePresence mode="wait">
           {!isComplete ? (
             <motion.div
               key="loader-content"
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{
-                scale: 5,
+                scale: 1.5,
                 opacity: 0,
-                transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] },
+                filter: 'blur(20px)',
+                transition: { duration: 1, ease: [0.16, 1, 0.3, 1] },
               }}
               className="relative w-full h-full flex flex-col items-center justify-center"
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
             >
               {thumbnail ? (
                 <div
                   className={cn(
-                    'relative border-4 border-foreground bk-shadow-md overflow-hidden bg-muted',
-                    isPortrait ? 'h-[80%] aspect-[9/16]' : 'w-full h-full'
+                    'relative border-4 border-foreground bk-shadow-xl overflow-hidden bg-muted group transition-all duration-500',
+                    isPortrait ? 'h-[90%] aspect-[9/16]' : 'w-full h-[80%]'
                   )}
                 >
                   <img
@@ -117,83 +134,144 @@ export function MatrixLoader({ videoUrl, isComplete, onAnimationComplete }: Matr
                     alt="Source Preview"
                     onLoad={handleImageLoad}
                     className={cn(
-                      'w-full h-full object-cover',
-                      !isPortrait && 'scale-110' // Slight stretch/zoom for landscape as requested
+                      'w-full h-full object-cover transition-transform duration-1000',
+                      !isPortrait && 'scale-105',
+                      isHovered && 'scale-110 blur-[2px]'
                     )}
                   />
-                  {/* Platform Badge */}
-                  <div className="absolute top-4 left-4 z-40 bg-foreground text-background px-3 py-1 text-[10px] font-black uppercase tracking-widest border-2 border-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]">
-                    {videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')
-                      ? 'Source: YouTube'
-                      : videoUrl.includes('reddit.com')
-                        ? 'Source: Reddit'
-                        : videoUrl.includes('twitter.com') || videoUrl.includes('x.com')
-                          ? 'Source: X / Twitter'
-                          : 'Source: External Link'}
+
+                  {/* Interactive Staggered Grid Overlay */}
+                  <div className="absolute inset-0 grid grid-cols-[repeat(15,1fr)] grid-rows-[repeat(15,1fr)] gap-[1px] opacity-60">
+                    {[...Array(GRID_SIZE ** 2)].map((_, idx) => {
+                      const row = Math.floor(idx / GRID_SIZE);
+                      const col = idx % GRID_SIZE;
+                      const dist = getDistance(row, col);
+                      
+                      return (
+                        <motion.div
+                          key={idx}
+                          className="bg-primary/20 border-[0.5px] border-primary/10"
+                          initial={{ opacity: 0, scale: 0 }}
+                          animate={!isHovered ? {
+                            opacity: [0.1, 0.4, 0.1],
+                            scale: [0.8, 1, 0.8],
+                          } : {
+                            opacity: 0.05,
+                            scale: 0.9,
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Number.POSITIVE_INFINITY,
+                            delay: dist * 1.5,
+                            ease: "easeInOut"
+                          }}
+                        />
+                      );
+                    })}
                   </div>
+
+                  {/* Platform Badge */}
+                  <div className="absolute top-6 left-6 z-40 bg-foreground text-background px-4 py-2 text-xs font-black uppercase tracking-[0.2em] border-2 border-primary shadow-[0_0_20px_rgba(var(--primary),0.6)]">
+                    {videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be') ? 'Source: YouTube' : 
+                     videoUrl.includes('reddit.com') ? 'Source: Reddit' :
+                     videoUrl.includes('twitter.com') || videoUrl.includes('x.com') ? 'Source: X / Twitter' :
+                     'Source: External Link'}
+                  </div>
+
                   {/* Scanning Line */}
                   <motion.div
-                    className="absolute top-0 left-0 w-full h-1 bg-primary z-30 shadow-[0_0_15px_rgba(var(--primary),0.8)]"
+                    className="absolute top-0 left-0 w-full h-2 bg-primary z-30 shadow-[0_0_30px_rgba(var(--primary),1)] opacity-80"
                     animate={{ top: ['0%', '100%'] }}
-                    transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, ease: 'linear' }}
+                    transition={{ duration: 4, repeat: Number.POSITIVE_INFINITY, ease: 'linear' }}
                   />
+
+                  {/* Matrix Escape Elements (Flinging out on Complete) */}
+                  <div className="absolute inset-0 pointer-events-none z-50">
+                     {[...Array(20)].map((_, i) => (
+                       <motion.div
+                         key={i}
+                         className="absolute w-2 h-2 bg-primary"
+                         initial={{ opacity: 0 }}
+                         exit={{
+                           opacity: [0, 1, 0],
+                           x: (Math.random() - 0.5) * 1000,
+                           y: (Math.random() - 0.5) * 1000,
+                           scale: [1, 2, 0],
+                           transition: { duration: 0.8, ease: "easeOut" }
+                         }}
+                         style={{
+                           left: `${Math.random() * 100}%`,
+                           top: `${Math.random() * 100}%`,
+                         }}
+                       />
+                     ))}
+                  </div>
+
                   {/* Glitch Overlay */}
-                  <div className="absolute inset-0 pointer-events-none mix-blend-overlay opacity-30 bk-diagonal-lines" />
+                  <div className="absolute inset-0 pointer-events-none mix-blend-overlay opacity-20 bk-diagonal-lines" />
                 </div>
               ) : (
-                <div className="w-48 h-48 border-4 border-foreground flex items-center justify-center bg-background">
-                  <div className="w-12 h-12 border-4 border-primary border-t-transparent animate-spin" />
+                <div className="w-64 h-64 border-4 border-foreground flex items-center justify-center bg-background bk-shadow-lg animate-pulse">
+                  <div className="w-16 h-16 border-4 border-primary border-t-transparent animate-spin" />
                 </div>
               )}
 
-              <div className="absolute bottom-12 left-1/2 -translate-x-1/2 text-center space-y-2 bg-background/90 p-4 border-4 border-foreground bk-shadow-sm min-w-[300px]">
-                <p className="text-3xl font-black uppercase tracking-tighter italic text-foreground">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-center space-y-3 bg-background/95 p-6 border-4 border-foreground bk-shadow-xl min-w-[400px] z-50">
+                <p className="text-4xl font-black uppercase tracking-tighter italic text-foreground leading-none">
                   Running AI pipeline
                 </p>
-                <div className="flex items-center justify-center gap-4">
-                  <div className="h-1 w-12 bg-primary" />
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.3em]">
+                <div className="flex items-center justify-center gap-6">
+                  <div className="h-1.5 w-16 bg-primary" />
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.5em]">
                     Forensic Sweep In Progress
                   </p>
-                  <div className="h-1 w-12 bg-primary" />
+                  <div className="h-1.5 w-16 bg-primary" />
                 </div>
               </div>
             </motion.div>
           ) : (
             <motion.div
               key="complete-flash"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
               onAnimationComplete={onAnimationComplete}
-              className="absolute inset-0 bg-primary z-50 flex items-center justify-center"
+              className="absolute inset-0 bg-primary z-[100] flex flex-col items-center justify-center"
             >
-              <h2 className="text-8xl font-black text-primary-foreground uppercase italic tracking-tighter">
+              <motion.h2 
+                initial={{ letterSpacing: '0.5em' }}
+                animate={{ letterSpacing: '-0.05em' }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="text-9xl font-black text-primary-foreground uppercase italic tracking-tighter"
+              >
+                SUCCESS
+              </motion.h2>
+              <p className="text-xl font-black text-primary-foreground/80 uppercase tracking-[1em] mt-4">
                 Analysis Complete
-              </h2>
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Neurobrutalism Trail / Matrix Elements */}
+      {/* Ambient Neurobrutalism Trail */}
       <div className="absolute inset-0 z-5 pointer-events-none">
-        {[...Array(10)].map((_, i) => (
+        {[...Array(12)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute bg-primary/10 border border-primary/20"
+            className="absolute bg-primary/5 border border-primary/10"
             initial={{
-              width: Math.random() * 100 + 50,
-              height: Math.random() * 20 + 5,
+              width: Math.random() * 150 + 50,
+              height: Math.random() * 30 + 10,
               x: Math.random() * 100 + '%',
               y: Math.random() * 100 + '%',
               opacity: 0,
             }}
             animate={{
-              opacity: [0, 0.5, 0],
-              x: [null, (Math.random() - 0.5) * 200 + 'px'],
+              opacity: [0, 0.3, 0],
+              x: [null, (Math.random() - 0.5) * 300 + 'px'],
             }}
             transition={{
-              duration: Math.random() * 3 + 2,
+              duration: Math.random() * 4 + 3,
               repeat: Number.POSITIVE_INFINITY,
               delay: Math.random() * 5,
             }}
