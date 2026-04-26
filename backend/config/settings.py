@@ -1,9 +1,9 @@
 """Vigilens settings — single source of truth for all configuration."""
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic_settings import BaseSettings
 
@@ -26,12 +26,10 @@ class Settings(BaseSettings):
     whisper_use_groq: bool = True
     groq_whisper_model: str = "whisper-large-v3-turbo"
 
-
     # ── LangSmith ─────────────────────────────────────────────────────────────
     langsmith_api_key: str = ""
     langsmith_project: str = "vigilens"
     langsmith_tracing_v2: str = "true"
-
 
     # ── Source hunting ────────────────────────────────────────────────────────
     google_vision_api_key: str = ""
@@ -46,6 +44,16 @@ class Settings(BaseSettings):
 
     # ── Context analyser ──────────────────────────────────────────────────────
     claimbuster_api_key: str = ""
+
+    # ── Telegram Alerts ───────────────────────────────────────────────────────
+    telegram_bot_token: str | None = None
+    telegram_channel_id: str | None = None  # e.g. "@vigilens_alerts" or numeric chat_id
+
+    # ── Custom Model ──────────────────────────────────────────────────────────
+    custom_model_enabled: bool = True
+
+    # ── Orchestrator model alias ──────────────────────────────────────────────
+    orchestrator_model: str = "llama-3.3-70b-versatile"
 
     # ── Notifications ─────────────────────────────────────────────────────────
     twilio_account_sid: str = ""
@@ -68,17 +76,19 @@ settings = Settings()
 
 # ── Auto-configure GCP Credentials ────────────────────────────────────────────
 
+
 def _find_gcp_key():
     # Try local, then parent (root), then explicit backend
     candidates = [
         Path(settings.google_cloud_key_path),
         Path("..") / settings.google_cloud_key_path,
-        Path("backend") / settings.google_cloud_key_path
+        Path("backend") / settings.google_cloud_key_path,
     ]
     for p in candidates:
         if p.exists():
             return str(p.absolute())
     return None
+
 
 key_path = _find_gcp_key()
 if key_path:
@@ -87,14 +97,14 @@ if key_path:
     settings.google_cloud_key_path = key_path
     print(f"[SETTINGS] Found GCP key at: {key_path}")
 else:
-    print(f"[SETTINGS] WARNING: gcp-key.json not found in root or backend folder.")
+    print("[SETTINGS] WARNING: gcp-key.json not found in root or backend folder.")
 
 
 def _ts() -> str:
-    return datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
+    return datetime.now(UTC).strftime("%H:%M:%S.%f")[:-3]
 
 
-def is_deprecated_groq_model(model_name: Optional[str]) -> bool:
+def is_deprecated_groq_model(model_name: str | None) -> bool:
     deprecated = {
         "llama-3.2-11b-vision-preview",
         "llama-3.2-90b-vision-preview",
@@ -123,7 +133,7 @@ def log_runtime_configuration() -> None:
         )
 
 
-def get_llm(model: Optional[str] = None):
+def get_llm(model: str | None = None):
     """
     Return ChatVertexAI (if credits available) or ChatGroq.
     """
@@ -131,10 +141,9 @@ def get_llm(model: Optional[str] = None):
     if settings.google_api_key:
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI
+
             return ChatGoogleGenerativeAI(
-                model=settings.gemini_model,
-                google_api_key=settings.google_api_key,
-                temperature=0.1
+                model=settings.gemini_model, google_api_key=settings.google_api_key, temperature=0.1
             )
         except Exception as e:
             print(f"[SETTINGS] Google AI Studio load failed: {e}. Trying Vertex...")
@@ -142,21 +151,21 @@ def get_llm(model: Optional[str] = None):
     # ── Priority 2: Vertex AI (GCP Project) ──────────────────────────────────
     if settings.google_cloud_project:
         try:
-            from langchain_google_vertexai import ChatVertexAI
             from google.oauth2 import service_account
-            
+            from langchain_google_vertexai import ChatVertexAI
+
             creds = None
             if settings.google_cloud_key_path and os.path.exists(settings.google_cloud_key_path):
                 creds = service_account.Credentials.from_service_account_file(
                     os.path.abspath(settings.google_cloud_key_path)
                 )
-            
+
             return ChatVertexAI(
                 model_name=settings.gemini_model,
                 project=settings.google_cloud_project,
                 location=settings.google_cloud_location,
                 credentials=creds,
-                temperature=0.1
+                temperature=0.1,
             )
         except Exception as e:
             print(f"[SETTINGS] Vertex AI load failed: {e}. Falling back to Groq...")
