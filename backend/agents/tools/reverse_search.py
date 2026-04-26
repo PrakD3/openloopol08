@@ -1,67 +1,135 @@
-"""Reverse image search tools."""
+"""Reverse frame search using Google Vision Web Detection."""
 
-import base64
+import logging
 from pathlib import Path
-from typing import Dict, List, Optional
 
-import httpx
-
-from ...config.settings import settings
+logger = logging.getLogger(__name__)
 
 
-async def phash_keyframes(frame_paths: List[str]) -> List[str]:
+def _get_vision_client():
+    """Returns authenticated Google Vision client using application default credentials."""
+    from google.cloud import vision
+
+    return vision.ImageAnnotatorClient()
+
+
+async def reverse_search_keyframes(frame_paths: list, max_frames: int = 3) -> dict:
     """
-    Compute perceptual hashes for keyframes.
+    Run Google Vision Web Detection on keyframes to find prior appearances
+    of the video content. This catches temporal displacement (real footage,
+    wrong time context) that deepfake detectors cannot catch.
 
-    Args:
-        frame_paths: List of paths to frame images
-
-    Returns:
-        List of pHash strings
+    Returns structured results including prior appearance URLs, dates,
+    and matching page context.
     """
-    hashes: List[str] = []
-    try:
-        import imagehash  # type: ignore[import]
-        from PIL import Image
+    if not frame_paths:
+        return {"status": "no_frames", "matches": [], "earliest_appearance": None}
 
-        for path in frame_paths:
-            img = Image.open(path)
-            phash = imagehash.phash(img)
-            hashes.append(str(phash))
-    except Exception:
-        pass
-    return hashes
-
-
-async def google_vision_reverse_search(frame_path: str) -> Dict:
-    """
-    Perform reverse image search via Google Vision API.
-
-    Returns:
-        Dict with web entities and matching pages
-    """
-    if not settings.google_vision_api_key:
-        return {"error": "Google Vision API key not configured"}
+    # Select best frames: first, middle, last
+    if len(frame_paths) <= max_frames:
+        selected = frame_paths
+    else:
+        selected = [
+            frame_paths[0],
+            frame_paths[len(frame_paths) // 2],
+            frame_paths[-1],
+        ]
 
     try:
-        with open(frame_path, "rb") as f:
-            img_b64 = base64.b64encode(f.read()).decode()
+        from google.cloud import vision
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(
-                f"https://vision.googleapis.com/v1/images:annotate?key={settings.google_vision_api_key}",
-                json={
-                    "requests": [
-                        {
-                            "image": {"content": img_b64},
-                            "features": [{"type": "WEB_DETECTION"}],
-                        }
-                    ]
-                },
+        client = _get_vision_client()
+    except Exception as e:
+        logger.error(f"[REVERSE_SEARCH] Failed to init Vision client: {e}")
+        return {
+            "status": "client_error",
+            "error": str(e),
+            "matches": [],
+            "prior_appearances_count": 0,
+            "temporal_displacement_risk": "low",
+        }
+
+    best_guess_labels = []
+    full_match_urls = []
+    partial_match_urls = []
+    matching_pages = []
+
+    for frame_path in selected:
+        if not Path(frame_path).exists():
+            continue
+
+        try:
+            with open(frame_path, "rb") as f:
+                content = f.read()
+
+            from google.cloud import vision
+
+            image = vision.Image(content=content)
+            response = client.web_detection(image=image)
+
+            if response.error.message:
+                logger.warning(
+                    f"[REVERSE_SEARCH] Vision API error on {Path(frame_path).name}: {response.error.message}"
+                )
+                continue
+
+            web = response.web_detection
+
+            # Collect best guess labels (what Google thinks this is)
+            for label in web.best_guess_labels:
+                if label.label not in best_guess_labels:
+                    best_guess_labels.append(label.label)
+
+            # Full matching images (exact same image found elsewhere)
+            for img in web.full_matching_images[:5]:
+                if img.url not in full_match_urls:
+                    full_match_urls.append(img.url)
+
+            # Partial matches (similar images)
+            for img in web.partial_matching_images[:5]:
+                if img.url not in partial_match_urls:
+                    partial_match_urls.append(img.url)
+
+            # Pages containing matching images
+            for page in web.pages_with_matching_images[:8]:
+                page_info = {
+                    "url": page.url,
+                    "title": page.page_title if hasattr(page, "page_title") else "",
+                }
+                if page_info not in matching_pages:
+                    matching_pages.append(page_info)
+
+            logger.info(
+                f"[REVERSE_SEARCH] Frame {Path(frame_path).name}: "
+                f"{len(web.full_matching_images)} full matches, "
+                f"{len(web.pages_with_matching_images)} pages"
             )
-            if response.status_code == 200:
-                return response.json().get("responses", [{}])[0].get("webDetection", {})
-    except Exception as exc:
-        return {"error": str(exc)}
 
-    return {}
+        except Exception as e:
+            logger.error(f"[REVERSE_SEARCH] Failed on frame {frame_path}: {e}")
+            continue
+
+    # Determine temporal displacement risk
+    temporal_displacement_risk = "low"
+    if len(full_match_urls) > 3:
+        temporal_displacement_risk = "high"  # widely circulated before
+    elif len(full_match_urls) > 0:
+        temporal_displacement_risk = "medium"
+
+    result = {
+        "status": "complete",
+        "frames_searched": len(selected),
+        "best_guess_labels": best_guess_labels,
+        "full_match_urls": full_match_urls,  # exact prior appearances
+        "partial_match_urls": partial_match_urls,
+        "matching_pages": matching_pages[:10],
+        "temporal_displacement_risk": temporal_displacement_risk,
+        "prior_appearances_count": len(full_match_urls),
+        "earliest_known_page": matching_pages[0] if matching_pages else None,
+    }
+
+    logger.info(
+        f"[REVERSE_SEARCH] Complete: {len(full_match_urls)} full matches, "
+        f"temporal risk={temporal_displacement_risk}"
+    )
+    return result
