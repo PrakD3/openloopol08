@@ -1,11 +1,12 @@
 import asyncio
 import time
-from datetime import datetime, timezone
-from typing import Any, Dict
+from datetime import UTC, datetime
+from typing import Any
 
 from langgraph.graph import END, StateGraph
 from langsmith import traceable
 
+from agents.nodes import uploader_profiler
 from agents.nodes.context_analyser import context_analyser_node
 from agents.nodes.deepfake_detector import deepfake_detector_node
 from agents.nodes.geolocation_hunter import geolocation_node
@@ -19,7 +20,7 @@ from api.job_store import update_progress
 
 def _ts() -> str:
     """Return a compact UTC timestamp string for log lines."""
-    return datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
+    return datetime.now(UTC).strftime("%H:%M:%S.%f")[:-3]
 
 
 def _summarise_finding(label: str, finding: Any) -> None:
@@ -69,7 +70,7 @@ def create_vigilens_graph() -> Any:
 
 
 @traceable(name="preprocess")
-async def preprocess_node(state: AgentState) -> Dict:
+async def preprocess_node(state: AgentState) -> dict:
     """Extract keyframes and audio from the video."""
     source = state.get("video_path") or state.get("video_url") or ""
     job_id = state.get("job_id", "unknown")
@@ -136,7 +137,7 @@ async def preprocess_node(state: AgentState) -> Dict:
 
 
 @traceable(name="parallel_analysis")
-async def parallel_analysis_node(state: AgentState) -> Dict:
+async def parallel_analysis_node(state: AgentState) -> dict:
     """Run all 3 detection agents concurrently and merge results."""
     job_id = state.get("job_id", "unknown")
     job_id_short = job_id[:8]
@@ -148,7 +149,7 @@ async def parallel_analysis_node(state: AgentState) -> Dict:
         flush=True,
     )
     print(
-        f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] Launching 3 agents concurrently — "
+        f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] Launching 5 agents concurrently — "
         f"keyframes={keyframe_count}  audio={'yes' if audio_path else 'no'}",
         flush=True,
     )
@@ -226,9 +227,33 @@ async def parallel_analysis_node(state: AgentState) -> Dict:
             update_progress(job_id, 0.80, "context_error")
             raise
 
+    async def timed_uploader_profiler():
+        t0 = time.monotonic()
+        print(f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] [uploader_profiler] → start", flush=True)
+        try:
+            result = await uploader_profiler.run(state)
+            elapsed = time.monotonic() - t0
+            print(
+                f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] [uploader_profiler] ← done in {elapsed:.1f}s",
+                flush=True,
+            )
+            update_progress(job_id, 0.72, "uploader_done")
+            return result
+        except Exception as exc:
+            elapsed = time.monotonic() - t0
+            print(
+                f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] [uploader_profiler] !! RAISED after {elapsed:.1f}s: "
+                f"{type(exc).__name__}: {exc}",
+                flush=True,
+            )
+            update_progress(job_id, 0.72, "uploader_error")
+            return state  # return state unchanged on failure
+
     async def timed_geolocation():
         t0 = time.monotonic()
-        print(f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] [geolocation_hunter] \u2192 start", flush=True)
+        print(
+            f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] [geolocation_hunter] \u2192 start", flush=True
+        )
         try:
             result = await geolocation_node(state)
             elapsed = time.monotonic() - t0
@@ -255,12 +280,14 @@ async def parallel_analysis_node(state: AgentState) -> Dict:
             timed_source(),
             timed_context(),
             timed_geolocation(),
+            timed_uploader_profiler(),
             return_exceptions=False,
         )
         deepfake_result = results[0]
         source_result = results[1]
         context_result = results[2]
         geo_result_data = results[3]
+        uploader_state = results[4]  # returns full state dict
     except Exception as exc:
         node_elapsed = time.monotonic() - node_start
         print(
@@ -279,6 +306,17 @@ async def parallel_analysis_node(state: AgentState) -> Dict:
     # The never-goes-backward clamp in update_progress handles race conditions
     # where context finishes before deepfake/source.
 
+    # Extract reverse search from source hunter detail
+    reverse_search_data = None
+    if source_result and source_result.detail:
+        try:
+            import json as _json
+
+            src_detail = _json.loads(source_result.detail)
+            reverse_search_data = src_detail.get("reverse_search")
+        except Exception:
+            pass
+
     return {
         **state,
         "deepfake_result": deepfake_result,
@@ -288,7 +326,26 @@ async def parallel_analysis_node(state: AgentState) -> Dict:
         "actual_location": geo_result_data.get("actual_location"),
         "latitude": geo_result_data.get("latitude"),
         "longitude": geo_result_data.get("longitude"),
-        "key_flags": list(set((state.get("key_flags") or []) + (geo_result_data.get("key_flags") or [])))
+        "key_flags": list(
+            set((state.get("key_flags") or []) + (geo_result_data.get("key_flags") or []))
+        ),
+        # New fields from uploader profiler
+        "platform_metadata": uploader_state.get("platform_metadata")
+        if isinstance(uploader_state, dict)
+        else None,
+        "reddit_metadata": uploader_state.get("reddit_metadata")
+        if isinstance(uploader_state, dict)
+        else None,
+        "uploader_intelligence": uploader_state.get("uploader_intelligence")
+        if isinstance(uploader_state, dict)
+        else None,
+        "reverse_search_result": reverse_search_data,
+        "comments_raw": uploader_state.get("comments_raw")
+        if isinstance(uploader_state, dict)
+        else None,
+        "comment_intelligence": uploader_state.get("comment_intelligence")
+        if isinstance(uploader_state, dict)
+        else None,
     }
 
 

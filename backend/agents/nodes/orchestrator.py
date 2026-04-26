@@ -8,15 +8,15 @@ LangSmith tracing is automatic when LANGSMITH_TRACING_V2=true.
 import asyncio
 import json
 import time
-import re
 from dataclasses import asdict
-from typing import Any, Dict
+from typing import Any
 
 from langsmith import traceable
 
-from agents.state import AgentFinding, AgentState
+from agents.nodes.context_analyser import format_key_flags
+from agents.state import AgentState
 from api.job_store import update_progress
-from config.settings import get_llm, settings
+from config.settings import settings
 from ml.disaster_classifier import classify_disaster
 from ml.sos_engine import get_sos_region
 
@@ -55,7 +55,7 @@ Produce a verdict. Respond ONLY with valid JSON (no markdown):
 
 
 @traceable(name="orchestrator")
-async def orchestrator_node(state: AgentState) -> Dict:
+async def orchestrator_node(state: AgentState) -> dict:
     """Compile final verdict from all agent findings."""
     job_id = state.get("job_id", "unknown")
     update_progress(job_id, 0.85, "orchestrator_starting")
@@ -80,19 +80,21 @@ async def orchestrator_node(state: AgentState) -> Dict:
     prompt = ORCHESTRATOR_PROMPT.format(
         agent_results_json=json.dumps(agent_results, indent=2),
         current_date=current_date,
-        current_year=current_year
+        current_year=current_year,
     )
 
     try:
         from langchain_google_vertexai import ChatVertexAI
+
         llm = ChatVertexAI(
             model_name=settings.gemini_model,
             project=settings.google_cloud_project,
             location=settings.google_cloud_location,
-            temperature=0.1
+            temperature=0.1,
         )
-        
+
         from langchain_core.messages import HumanMessage
+
         response = await asyncio.wait_for(llm.ainvoke([HumanMessage(content=prompt)]), timeout=45.0)
         raw = response.content
 
@@ -138,17 +140,21 @@ async def orchestrator_node(state: AgentState) -> Dict:
     disaster_type = classify_disaster(
         transcript=state.get("context_result").findings[0] if state.get("context_result") else None,
         ocr_text=state.get("context_result").detail if state.get("context_result") else None,
-        video_url=state.get("video_url")
+        video_url=state.get("video_url"),
     )
 
     sos_region = None
-    location = verdict_data.get("actual_location") or verdict_data.get("claimed_location") or state.get("claimed_location")
-    
+    location = (
+        verdict_data.get("actual_location")
+        or verdict_data.get("claimed_location")
+        or state.get("claimed_location")
+    )
+
     if raw_verdict == "real" and int(verdict_data.get("panic_index", 5)) >= 5 and location:
         sos_region = await get_sos_region(
             location=location,
             disaster_type=disaster_type,
-            panic_index=int(verdict_data.get("panic_index", 5))
+            panic_index=int(verdict_data.get("panic_index", 5)),
         )
 
     result = {
@@ -162,14 +168,36 @@ async def orchestrator_node(state: AgentState) -> Dict:
         "original_date": verdict_data.get("original_date"),
         "claimed_location": verdict_data.get("claimed_location") or state.get("claimed_location"),
         "actual_location": verdict_data.get("actual_location"),
-        "key_flags": verdict_data.get("key_flags", []),
+        "key_flags": format_key_flags(verdict_data.get("key_flags", [])),
         "sos_region": sos_region,
     }
     update_progress(job_id, 0.90, "orchestrator_done")
+
+    # Send Telegram alert for high-risk verdicts (non-blocking)
+    try:
+        import asyncio as _asyncio
+
+        from services.telegram_alerts import send_verdict_alert
+
+        _asyncio.create_task(
+            send_verdict_alert(
+                job_id=state.get("job_id", ""),
+                verdict=raw_verdict,
+                credibility_score=max(0, min(100, int(verdict_data.get("credibility_score", 0)))),
+                panic_index=max(0, min(10, int(verdict_data.get("panic_index", 5)))),
+                video_url=state.get("video_url", ""),
+                summary=verdict_data.get("summary", ""),
+                actual_location=verdict_data.get("actual_location"),
+                key_flags=verdict_data.get("key_flags", []),
+            )
+        )
+    except Exception as _tg_exc:
+        print(f"[Orchestrator] Telegram alert setup failed: {_tg_exc}", flush=True)
+
     return result
 
 
-def _finding_to_dict(finding: Any) -> Dict:
+def _finding_to_dict(finding: Any) -> dict:
     if finding is None:
         return {"status": "not_run"}
     if hasattr(finding, "__dataclass_fields__"):
@@ -177,7 +205,7 @@ def _finding_to_dict(finding: Any) -> Dict:
     return {}
 
 
-def _demo_verdict(state: AgentState) -> Dict:
+def _demo_verdict(state: AgentState) -> dict:
     return {
         **state,
         "verdict": "unverified",

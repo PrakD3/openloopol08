@@ -4,8 +4,8 @@ import time
 import traceback
 import uuid
 from dataclasses import asdict
-from datetime import datetime, timezone
-from typing import Any, Dict
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
@@ -19,7 +19,14 @@ from api.job_store import (
     mark_failed,
     update_progress,
 )
-from api.models import AgentFindingResponse, AnalyzeRequest, AnalyzeResponse
+from api.models import (
+    AgentFindingResponse,
+    AnalyzeRequest,
+    AnalyzeResponse,
+    CommentIntelligence,
+    ReverseSearchResult,
+    UploaderIntelligence,
+)
 from config.settings import log_runtime_configuration
 
 router = APIRouter()
@@ -28,16 +35,16 @@ _RUNTIME_LOGGED = False
 
 def _ts() -> str:
     """Return a compact UTC timestamp string for log lines."""
-    return datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
+    return datetime.now(UTC).strftime("%H:%M:%S.%f")[:-3]
 
 
 # ── POST /analyze ─────────────────────────────────────────────────────────────
 
 
-@router.post("/analyze", response_model=Dict[str, str])
+@router.post("/analyze", response_model=dict[str, str])
 async def analyze_video(
     request: AnalyzeRequest, background_tasks: BackgroundTasks
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Start the Vigilens analysis pipeline in the background.
 
@@ -140,7 +147,9 @@ async def run_analysis_task(
             "audio_path": None,
             "metadata": {},
             "transcript": None,
+            "transcript_error": None,
             "ocr_text": None,
+            "ocr_error": None,
             "deepfake_result": None,
             "source_result": None,
             "context_result": None,
@@ -156,6 +165,12 @@ async def run_analysis_task(
             "error": None,
             "notification_result": None,
             "is_war_or_conflict": None,
+            "platform_metadata": None,
+            "reddit_metadata": None,
+            "uploader_intelligence": None,
+            "reverse_search_result": None,
+            "comments_raw": None,
+            "comment_intelligence": None,
         }
 
         # ── Execute LangGraph pipeline ────────────────────────────────────────
@@ -181,7 +196,12 @@ async def run_analysis_task(
 
         # ── Build agent finding responses ─────────────────────────────────────
         agents = []
-        for finding_key in ["deepfake_result", "source_result", "context_result", "geolocation_result"]:
+        for finding_key in [
+            "deepfake_result",
+            "source_result",
+            "context_result",
+            "geolocation_result",
+        ]:
             finding = final_state.get(finding_key)
             print(
                 f"[{_ts()}] [JOB:{job_id[:8]}] {finding_key}: "
@@ -231,6 +251,23 @@ async def run_analysis_task(
             disaster_type=final_state.get("disaster_type", "unknown"),
             sos_region=final_state.get("sos_region"),
             agents=agents,
+            uploader_intelligence=(
+                UploaderIntelligence(**final_state["uploader_intelligence"])
+                if final_state.get("uploader_intelligence")
+                else None
+            ),
+            reverse_search=(
+                ReverseSearchResult(**final_state["reverse_search_result"])
+                if final_state.get("reverse_search_result")
+                else None
+            ),
+            comment_intelligence=(
+                CommentIntelligence(**final_state["comment_intelligence"])
+                if final_state.get("comment_intelligence")
+                else None
+            ),
+            platform_metadata=final_state.get("platform_metadata"),
+            reddit_metadata=final_state.get("reddit_metadata"),
         )
 
         # ── Warn if pipeline returned empty keyframes ─────────────────────────
@@ -271,7 +308,7 @@ async def run_analysis_task(
 
 
 @router.get("/status/{job_id}")
-async def get_status(job_id: str) -> Dict[str, Any]:
+async def get_status(job_id: str) -> dict[str, Any]:
     """
     Poll the status of a background analysis job.
 
