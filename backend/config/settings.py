@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     # Groq Speech-to-Text (replaces local Whisper on cold-start)
     # Models available: whisper-large-v3, whisper-large-v3-turbo
     whisper_use_groq: bool = True
+    whisper_use_api: bool = False
+    whisper_model_size: str = "small"
     groq_whisper_model: str = "whisper-large-v3-turbo"
 
     # ── LangSmith ─────────────────────────────────────────────────────────────

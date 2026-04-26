@@ -77,9 +77,7 @@ export function VerdictCard({ result }: VerdictCardProps) {
   return (
     <div className="space-y-4">
       {/* Main verdict card */}
-      <Card
-        className={cn("border-2 transition-all", getVerdictBg(result.verdict))}
-      >
+      <Card className={cn("transition-all", getVerdictBg(result.verdict))}>
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
@@ -108,8 +106,8 @@ export function VerdictCard({ result }: VerdictCardProps) {
               <ScoreRing
                 score={result.credibilityScore}
                 label={t("analysis.credibilityScore")}
-                size={100}
-                strokeWidth={8}
+                size={80}
+                strokeWidth={6}
                 colorClass={
                   result.verdict === "real" ? "text-accent" : "text-destructive"
                 }
@@ -117,8 +115,8 @@ export function VerdictCard({ result }: VerdictCardProps) {
               <ScoreRing
                 score={result.panicIndex * 10}
                 label={t("analysis.panicIndex")}
-                size={100}
-                strokeWidth={8}
+                size={80}
+                strokeWidth={6}
                 colorClass="text-primary"
               />
             </div>
@@ -134,7 +132,7 @@ export function VerdictCard({ result }: VerdictCardProps) {
                 Summary
               </p>
             </div>
-            <p className="text-sm leading-relaxed text-foreground font-normal">
+            <p className="text-sm leading-relaxed text-foreground font-medium">
               {result.summary}
             </p>
           </div>

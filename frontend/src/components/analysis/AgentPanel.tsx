@@ -84,8 +84,8 @@ export function AgentPanel({ agents }: AgentPanelProps) {
         {t("analysis.agents")}
       </h3>
       {agents.map((agent) => {
-        const isDeepfake = agent.agentId === "deepfake-detector";
-        const isSource = agent.agentId === "source_hunter";
+        const isDeepfake = agent.agentId === "deepfake-detector" || agent.agentId === "deepfake_detector";
+        const isSource = agent.agentId === "source-hunter" || agent.agentId === "source_hunter";
         // For deepfake: score = fake%, lower is better → badge shows fake%
         // For others: score = authenticity%, higher is better
         const scorePct = agent.score ?? 0;
@@ -108,7 +108,7 @@ export function AgentPanel({ agents }: AgentPanelProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <AgentStatusIcon status={agent.status} />
-                  <CardTitle className="text-sm">{agent.agentName}</CardTitle>
+                  <CardTitle className="text-sm font-black uppercase tracking-tight">{agent.agentName}</CardTitle>
                 </div>
                 {agent.score !== null && agent.score !== undefined && (
                   <Badge

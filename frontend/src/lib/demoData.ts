@@ -11,13 +11,14 @@ const DEMO_RESULT_REAL: AnalysisResult = {
   verdict: "real",
   credibilityScore: 91,
   panicIndex: 6,
-  summary:
-    "This video shows authentic footage of the 2023 Chennai flooding. The source is verified as BBC News India uploaded on 19 September 2023. GPS metadata and visual cues confirm the location.",
+  summary: "This video shows authentic footage of the 2023 Chennai flooding. The source is verified as BBC News India uploaded on 19 September 2023. GPS metadata and visual cues confirm the location.",
   sourceOrigin: "https://www.youtube.com/watch?v=5xFbCOWgLWM",
   originalDate: "2023-09-19",
   disasterType: "flood",
   claimedLocation: "Chennai, Tamil Nadu, India",
   actualLocation: "Chennai, Tamil Nadu, India",
+  latitude: 13.0827,
+  longitude: 80.2707,
   keyFlags: [
     "Verified source channel",
     "EXIF metadata matches",
@@ -77,13 +78,14 @@ const DEMO_RESULT_MISLEADING: AnalysisResult = {
   verdict: "misleading",
   credibilityScore: 24,
   panicIndex: 8,
-  summary:
-    "This video is real footage, but it is from the 2021 Uttarakhand glacier burst — NOT the 2023 Manipur floods as widely shared. The original source is 14 months older than the circulated claim.",
+  summary: "This video is real footage, but it is from the 2021 Uttarakhand glacier burst — NOT the 2023 Manipur floods as widely shared. The original source is 14 months older than the circulated claim.",
   sourceOrigin: "https://www.youtube.com/watch?v=Zy1-WN2f0mE",
   originalDate: "2021-02-07",
   disasterType: "flood",
   claimedLocation: "Manipur, India (2023)",
   actualLocation: "Chamoli, Uttarakhand, India (2021)",
+  latitude: 30.415,
+  longitude: 79.3333,
   keyFlags: [
     "Recirculated video — 14 months before claimed event",
     "Location mismatch confirmed by GPS and visual analysis",
@@ -149,6 +151,8 @@ const DEMO_RESULT_AI_GENERATED: AnalysisResult = {
   disasterType: "unknown",
   claimedLocation: "Mumbai, India",
   actualLocation: null,
+  latitude: 18.9750,
+  longitude: 72.8258,
   keyFlags: [
     "AI generation confidence: 94%",
     "GAN artifacts in water simulation",
