@@ -23,7 +23,6 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
 import httpx
 from langsmith import traceable
@@ -74,7 +73,7 @@ async def transcribe_audio_with_logging(audio_path: str, groq_api_key: str) -> t
         return None, f"whisper_error: {str(e)[:120]}"
 
 
-async def _transcribe_audio(audio_path: Optional[str]) -> Optional[str]:
+async def _transcribe_audio(audio_path: str | None) -> str | None:
     """
     Transcribe audio using Whisper. Priority order:
 
@@ -242,7 +241,7 @@ async def _extract_ocr_text_online(keyframes: list[str]) -> str:
 GDACS_URL = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH"
 
 
-async def _query_gdacs(location: Optional[str] = None, event_type: Optional[str] = None) -> list:
+async def _query_gdacs(location: str | None = None, event_type: str | None = None) -> list:
     """
     Query the Global Disaster Alert and Coordination System (GDACS).
     Free public API, no key needed.
@@ -276,7 +275,7 @@ async def _query_gdacs(location: Optional[str] = None, event_type: Optional[str]
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 
 
-async def _geocode_location(location_name: str) -> Optional[dict]:
+async def _geocode_location(location_name: str) -> dict | None:
     """
     Convert a place name to GPS coordinates using OSM Nominatim.
     Free, no API key. Be respectful: max 1 req/sec (handled by asyncio).
@@ -310,7 +309,7 @@ async def _geocode_location(location_name: str) -> Optional[dict]:
 OPENMETEO_URL = "https://archive-api.open-meteo.com/v1/archive"
 
 
-async def _get_historical_weather(lat: float, lon: float, date: str) -> Optional[dict]:
+async def _get_historical_weather(lat: float, lon: float, date: str) -> dict | None:
     """
     Get historical weather for a location and date.
     Free API, no key needed.
