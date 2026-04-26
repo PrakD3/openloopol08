@@ -21,7 +21,10 @@ async def notification_node(state: AgentState) -> AgentState:
     verdict = state.get("verdict", "unverified")
     credibility_score = state.get("credibility_score", 0)
     if state.get("error"):
-        return {**state, "notification_result": {"sent": False, "reason": f"Pipeline error: {state['error']}"}}
+        return {
+            **state,
+            "notification_result": {"sent": False, "reason": f"Pipeline error: {state['error']}"},
+        }
 
     # Helper to safely extract detail from AgentFinding or None
     def get_detail(finding):
@@ -40,13 +43,11 @@ async def notification_node(state: AgentState) -> AgentState:
     platform_meta = source_detail.get("platform_metadata", {})
     event_lat = exif.get("gps_lat") or state.get("metadata", {}).get("lat")
     event_lon = exif.get("gps_lon") or state.get("metadata", {}).get("lon")
-    
+
     # Safely navigate context_detail nested structure
     llm_res = context_detail.get("llm_result", {})
     event_location_name = (
-        platform_meta.get("location")
-        or llm_res.get("claimed_location")
-        or "Unknown location"
+        platform_meta.get("location") or llm_res.get("claimed_location") or "Unknown location"
     )
     event_type = llm_res.get("event_type", "unknown")
     is_war_or_conflict = llm_res.get("is_war_or_conflict", False)

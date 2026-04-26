@@ -7,7 +7,7 @@ from api.models import JobStatusResponse
 router = APIRouter()
 
 # In-memory job store (replace with Redis in production)
-_jobs: dict = {}
+_jobs: dict[str, JobStatusResponse] = {}
 
 
 @router.get("/status/{job_id}", response_model=JobStatusResponse)

@@ -9,14 +9,10 @@ import asyncio
 import json
 import time
 from dataclasses import asdict
+from datetime import datetime, timezone
 from typing import Any
 
-from datetime import datetime, timezone
 from langsmith import traceable
-
-
-def _ts() -> str:
-    return datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
 
 from agents.nodes.context_analyser import format_key_flags
 from agents.state import AgentState
@@ -24,6 +20,11 @@ from api.job_store import update_progress
 from config.settings import settings
 from ml.disaster_classifier import classify_disaster
 from ml.sos_engine import get_sos_region
+
+
+def _ts() -> str:
+    return datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
+
 
 ORCHESTRATOR_PROMPT = """
 You are the Vigilens Orchestrator. Four AI agents have analysed a disaster video.
@@ -66,7 +67,10 @@ async def orchestrator_node(state: AgentState) -> dict:
     update_progress(job_id, 0.85, "orchestrator_starting")
 
     if state.get("error") == "Video not found":
-        print(f"[{_ts()}] [ORCHESTRATOR] [JOB:{job_id[:8]}] Handling Video not found error", flush=True)
+        print(
+            f"[{_ts()}] [ORCHESTRATOR] [JOB:{job_id[:8]}] Handling Video not found error",
+            flush=True,
+        )
         return {
             **state,
             "verdict": "unverified",

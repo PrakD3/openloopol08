@@ -2,7 +2,7 @@
 
 import pytest
 
-from ..agents.state import AgentFinding, AgentState
+from agents.state import AgentFinding, AgentState
 
 
 def _make_state() -> AgentState:
@@ -34,7 +34,7 @@ def _make_state() -> AgentState:
 @pytest.mark.asyncio
 async def test_deepfake_detector_demo() -> None:
     """DeepFake detector returns a finding in demo mode."""
-    from ..agents.nodes.deepfake_detector import deepfake_detector_node
+    from agents.nodes.deepfake_detector import deepfake_detector_node
 
     state = _make_state()
     result = await deepfake_detector_node(state)
@@ -47,7 +47,7 @@ async def test_deepfake_detector_demo() -> None:
 @pytest.mark.asyncio
 async def test_source_hunter_demo() -> None:
     """Source hunter returns a finding in demo mode."""
-    from ..agents.nodes.source_hunter import source_hunter_node
+    from agents.nodes.source_hunter import source_hunter_node
 
     state = _make_state()
     result = await source_hunter_node(state)
@@ -60,7 +60,7 @@ async def test_source_hunter_demo() -> None:
 @pytest.mark.asyncio
 async def test_context_analyser_demo() -> None:
     """Context analyser returns a finding in demo mode."""
-    from ..agents.nodes.context_analyser import context_analyser_node
+    from agents.nodes.context_analyser import context_analyser_node
 
     state = _make_state()
     result = await context_analyser_node(state)

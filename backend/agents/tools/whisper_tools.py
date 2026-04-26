@@ -38,7 +38,10 @@ async def _api_transcribe(audio_path: str) -> Optional[str]:
                     data={"model": "whisper-1"},
                 )
             if response.status_code == 200:
-                return response.json().get("text", "")
+                data = response.json()
+                if isinstance(data, dict):
+                    return str(data.get("text", ""))
+        return None
     except Exception:
         pass
     return None
@@ -51,6 +54,8 @@ async def _local_transcribe(audio_path: str) -> Optional[str]:
 
         model = whisper.load_model(settings.whisper_model_size)
         result = model.transcribe(audio_path)
-        return result.get("text", "")
+        if isinstance(result, dict):
+            return str(result.get("text", ""))
+        return None
     except Exception:
         return None

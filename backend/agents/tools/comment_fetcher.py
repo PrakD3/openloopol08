@@ -104,7 +104,10 @@ Extract the following and respond ONLY in valid JSON:
             max_tokens=500,
             response_format={"type": "json_object"},
         )
-        return json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content
+        if content:
+            return dict(json.loads(content))
+        return None
     except Exception as e:
         logger.error(f"[COMMENTS] Groq analysis failed: {e}")
         return None

@@ -13,24 +13,30 @@ Rate limit: 1 request/second (we only call this once per analysis).
 
 from __future__ import annotations
 
-import asyncio
-from typing import Optional
+from typing import TypedDict
 
 import httpx
+
+
+class RadiusConfig(TypedDict):
+    base_km: int
+    scale_km: int
+    color: str
+
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 NOMINATIM_USER_AGENT = "Vigilens-Disaster-Verifier/1.0 (hackathon@openloop.dev)"
 
 # Impact radius formula per disaster type:
 #   radius_km = base_km + panic_index * scale_km
-IMPACT_RADIUS_CONFIG = {
-    "flood":      {"base_km": 8,  "scale_km": 4,   "color": "#3b82f6"},  # blue
-    "earthquake": {"base_km": 25, "scale_km": 18,  "color": "#f97316"},  # orange
-    "cyclone":    {"base_km": 60, "scale_km": 28,  "color": "#8b5cf6"},  # purple
-    "tsunami":    {"base_km": 35, "scale_km": 22,  "color": "#06b6d4"},  # cyan
-    "wildfire":   {"base_km": 6,  "scale_km": 6,   "color": "#ef4444"},  # red
-    "landslide":  {"base_km": 5,  "scale_km": 4,   "color": "#84cc16"},  # lime
-    "unknown":    {"base_km": 15, "scale_km": 8,   "color": "#f59e0b"},  # amber
+IMPACT_RADIUS_CONFIG: dict[str, RadiusConfig] = {
+    "flood": {"base_km": 8, "scale_km": 4, "color": "#3b82f6"},  # blue
+    "earthquake": {"base_km": 25, "scale_km": 18, "color": "#f97316"},  # orange
+    "cyclone": {"base_km": 60, "scale_km": 28, "color": "#8b5cf6"},  # purple
+    "tsunami": {"base_km": 35, "scale_km": 22, "color": "#06b6d4"},  # cyan
+    "wildfire": {"base_km": 6, "scale_km": 6, "color": "#ef4444"},  # red
+    "landslide": {"base_km": 5, "scale_km": 4, "color": "#84cc16"},  # lime
+    "unknown": {"base_km": 15, "scale_km": 8, "color": "#f59e0b"},  # amber
 }
 
 
@@ -38,7 +44,7 @@ async def get_sos_region(
     location: str,
     disaster_type: str,
     panic_index: int,
-) -> Optional[dict]:
+) -> dict | None:
     """
     Geocode *location* and compute the SOS impact zone.
 

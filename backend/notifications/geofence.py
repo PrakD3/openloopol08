@@ -5,7 +5,6 @@ Finds all registered users within NOTIFICATION_RADIUS_KM of an event.
 
 import math
 from dataclasses import dataclass
-from typing import Optional
 
 from config.settings import settings
 
@@ -16,7 +15,7 @@ class UserLocation:
     phone_number: str  # E.164 format: +971xxxxxxxx
     latitude: float
     longitude: float
-    area_name: Optional[str] = None
+    area_name: str | None = None
 
 
 def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -46,6 +45,7 @@ def find_users_in_radius(
     """
     radius = radius_km or settings.notification_radius_km
     return [
-        user for user in all_users
+        user
+        for user in all_users
         if haversine_distance_km(event_lat, event_lon, user.latitude, user.longitude) <= radius
     ]

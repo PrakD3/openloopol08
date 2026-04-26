@@ -9,46 +9,98 @@ No external model needed — works offline.
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional
 
-DISASTER_KEYWORDS: Dict[str, List[str]] = {
+DISASTER_KEYWORDS: dict[str, list[str]] = {
     "flood": [
-        "flood", "flooding", "inundated", "submerged", "water level",
-        "deluge", "waterlogged", "overflow", "river burst", "cloudburst",
-        "बाढ़", "வெள்ளம்", "홍수",
+        "flood",
+        "flooding",
+        "inundated",
+        "submerged",
+        "water level",
+        "deluge",
+        "waterlogged",
+        "overflow",
+        "river burst",
+        "cloudburst",
+        "बाढ़",
+        "வெள்ளம்",
+        "홍수",
     ],
     "earthquake": [
-        "earthquake", "tremor", "seismic", "magnitude", "aftershock",
-        "rubble", "collapse", "quake", "richter", "epicenter", "epicentre",
-        "भूकंप", "நிலநடுக்கம்", "지진",
+        "earthquake",
+        "tremor",
+        "seismic",
+        "magnitude",
+        "aftershock",
+        "rubble",
+        "collapse",
+        "quake",
+        "richter",
+        "epicenter",
+        "epicentre",
+        "भूकंप",
+        "நிலநடுக்கம்",
+        "지진",
     ],
     "cyclone": [
-        "cyclone", "hurricane", "typhoon", "tropical storm", "wind speed",
-        "landfall", "storm surge", "eye of the storm", "category",
-        "चक्रवात", "சூறாவளி", "태풍",
+        "cyclone",
+        "hurricane",
+        "typhoon",
+        "tropical storm",
+        "wind speed",
+        "landfall",
+        "storm surge",
+        "eye of the storm",
+        "category",
+        "चक्रवात",
+        "சூறாவளி",
+        "태풍",
     ],
     "tsunami": [
-        "tsunami", "tidal wave", "coastal wave", "wave height",
-        "seawave", "ocean surge", "sea surge",
-        "सुनामी", "சுனாமி", "쓰나미",
+        "tsunami",
+        "tidal wave",
+        "coastal wave",
+        "wave height",
+        "seawave",
+        "ocean surge",
+        "sea surge",
+        "सुनामी",
+        "சுனாமி",
+        "쓰나미",
     ],
     "wildfire": [
-        "wildfire", "forest fire", "bushfire", "brushfire", "burning",
-        "smoke", "evacuation", "blaze", "fire spread", "arson",
-        "जंगल की आग", "காட்டுத் தீ", "산불",
+        "wildfire",
+        "forest fire",
+        "bushfire",
+        "brushfire",
+        "burning",
+        "smoke",
+        "evacuation",
+        "blaze",
+        "fire spread",
+        "arson",
+        "जंगल की आग",
+        "காட்டுத் தீ",
+        "산불",
     ],
     "landslide": [
-        "landslide", "mudslide", "rockslide", "debris flow", "slope failure",
-        "भूस्खलन", "நிலச்சரிவு", "산사태",
+        "landslide",
+        "mudslide",
+        "rockslide",
+        "debris flow",
+        "slope failure",
+        "भूस्खलन",
+        "நிலச்சரிவு",
+        "산사태",
     ],
 }
 
 
 def classify_disaster(
-    transcript: Optional[str] = None,
-    ocr_text: Optional[str] = None,
-    llm_findings: Optional[List[str]] = None,
-    video_url: Optional[str] = None,
+    transcript: str | None = None,
+    ocr_text: str | None = None,
+    llm_findings: list[str] | None = None,
+    video_url: str | None = None,
 ) -> str:
     """
     Returns the most likely disaster type as a string, or 'unknown'.
@@ -69,7 +121,7 @@ def classify_disaster(
     if not combined_text.strip():
         return "unknown"
 
-    scores: Dict[str, int] = {dtype: 0 for dtype in DISASTER_KEYWORDS}
+    scores: dict[str, int] = {dtype: 0 for dtype in DISASTER_KEYWORDS}
 
     for dtype, keywords in DISASTER_KEYWORDS.items():
         for kw in keywords:

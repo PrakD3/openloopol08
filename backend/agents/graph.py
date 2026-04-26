@@ -152,7 +152,10 @@ async def preprocess_node(state: AgentState) -> dict:
         )
         return {**state, "keyframes": [], "audio_path": audio, "error": "Video not found"}
 
-    print(f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] Preprocess success: {len(frames)} frames", flush=True)
+    print(
+        f"[{_ts()}] [GRAPH] [JOB:{job_id_short}] Preprocess success: {len(frames)} frames",
+        flush=True,
+    )
     return {**state, "keyframes": frames, "audio_path": audio, "error": None}
 
 

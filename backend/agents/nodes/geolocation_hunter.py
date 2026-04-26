@@ -39,13 +39,16 @@ The JSON structure should be:
 }
 """
 
+
 class GeolocationHunter:
     def __init__(self):
         # ── Use centralized LLM factory (prioritizes Google AI Studio / Vertex) ─
         try:
             self.llm = get_llm(model=settings.gemini_model)
             self.mode = "vertex" if settings.google_cloud_project else "google"
-            logger.info(f"Geolocation Hunter: Initialized with {self.mode.upper()} ({settings.gemini_model})")
+            logger.info(
+                f"Geolocation Hunter: Initialized with {self.mode.upper()} ({settings.gemini_model})"
+            )
         except Exception as e:
             logger.error(f"Geolocation Hunter: LLM init failed: {e}. Falling back to Groq...")
             self.llm = get_llm(model=settings.groq_vision_model)
@@ -63,7 +66,7 @@ class GeolocationHunter:
 
         buffer = io.BytesIO()
         img.save(buffer, format="JPEG", quality=85)
-        return base64.b64encode(buffer.getvalue()).decode('utf-8')
+        return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
     async def run(self, state: AgentState) -> dict:
         logger.info("Geolocation Hunter: Starting analysis")
@@ -76,7 +79,7 @@ class GeolocationHunter:
                     agent_id="geolocation_hunter",
                     agent_name="Geo Hunter",
                     status="error",
-                    findings=["No keyframes available for analysis"]
+                    findings=["No keyframes available for analysis"],
                 )
             }
 
@@ -92,23 +95,25 @@ class GeolocationHunter:
             # Using ChatGroq via LangChain
             from langchain_core.messages import HumanMessage
 
-            content = [
-                {"type": "text", "text": GEOLOCATION_PROMPT}
-            ]
+            content = [{"type": "text", "text": GEOLOCATION_PROMPT}]
 
             for frame_path in target_frames:
                 base64_image = self._encode_image(frame_path)
                 if self.mode in ["vertex", "google"]:
-                    content.append({
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
-                    })
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                        }
+                    )
                 else:
                     # Groq format (sometimes slightly different in langchain_groq)
-                    content.append({
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
-                    })
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                        }
+                    )
 
             # Call the LLM
             message = HumanMessage(content=content)
@@ -141,15 +146,28 @@ class GeolocationHunter:
                 status="done",
                 findings=all_findings,
                 detail=interpretation,
-                duration_ms=duration
+                duration_ms=duration,
             )
 
             return {
                 "geolocation_result": finding,
-                "actual_location": f"{best_location.get('city')}, {best_location.get('state')}, {best_location.get('country')}" if best_location else "Unknown",
-                "latitude": best_location.get("coordinates", {}).get("latitude") if best_location else None,
-                "longitude": best_location.get("coordinates", {}).get("longitude") if best_location else None,
-                "key_flags": state.get("key_flags", []) + (["Geolocation Mismatch"] if state.get("claimed_location") and best_location and state.get("claimed_location").lower() not in loc_str.lower() else [])
+                "actual_location": f"{best_location.get('city')}, {best_location.get('state')}, {best_location.get('country')}"
+                if best_location
+                else "Unknown",
+                "latitude": best_location.get("coordinates", {}).get("latitude")
+                if best_location
+                else None,
+                "longitude": best_location.get("coordinates", {}).get("longitude")
+                if best_location
+                else None,
+                "key_flags": state.get("key_flags", [])
+                + (
+                    ["Geolocation Mismatch"]
+                    if state.get("claimed_location")
+                    and best_location
+                    and state.get("claimed_location").lower() not in loc_str.lower()
+                    else []
+                ),
             }
 
         except Exception as e:
@@ -159,9 +177,10 @@ class GeolocationHunter:
                     agent_id="geolocation_hunter",
                     agent_name="Geo Hunter",
                     status="error",
-                    findings=[f"Analysis failed: {str(e)}"]
+                    findings=[f"Analysis failed: {str(e)}"],
                 )
             }
+
 
 async def geolocation_node(state: AgentState) -> dict:
     hunter = GeolocationHunter()

@@ -10,14 +10,12 @@ SAFETY: This module checks all safety gates before sending any SMS.
 """
 
 import asyncio
-from typing import Optional
 
 from langsmith import traceable
 
 from config.settings import settings
-from notifications.geofence import UserLocation, find_users_in_radius
+from notifications.geofence import find_users_in_radius
 from notifications.user_registry import get_all_users
-
 
 # ── SMS Message Templates ─────────────────────────────────────────────────────
 
@@ -99,6 +97,7 @@ EVENT_MESSAGES = {
     },
 }
 
+
 def _build_sms_message(
     event_type: str,
     event_location: str,
@@ -127,6 +126,7 @@ def _build_sms_message(
 
 # ── Safety Gate ───────────────────────────────────────────────────────────────
 
+
 def _passes_safety_gate(
     verdict: str,
     credibility_score: int,
@@ -143,13 +143,17 @@ def _passes_safety_gate(
     if verdict != "real":
         return False, f"Verdict is '{verdict}' — only 'real' events trigger alerts"
     if credibility_score < settings.notification_confidence_threshold:
-        return False, f"Score {credibility_score}% < threshold {settings.notification_confidence_threshold}%"
+        return (
+            False,
+            f"Score {credibility_score}% < threshold {settings.notification_confidence_threshold}%",
+        )
     if not settings.twilio_account_sid or not settings.twilio_auth_token:
         return False, "Twilio credentials not configured"
     return True, "All safety checks passed"
 
 
 # ── Twilio Sender ─────────────────────────────────────────────────────────────
+
 
 async def _send_sms(to_number: str, message: str) -> bool:
     """
@@ -159,6 +163,7 @@ async def _send_sms(to_number: str, message: str) -> bool:
     """
     try:
         import httpx
+
         url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.twilio_account_sid}/Messages.json"
         data = {
             "To": to_number,
@@ -184,6 +189,7 @@ async def _send_sms(to_number: str, message: str) -> bool:
 
 
 # ── Main Dispatcher ───────────────────────────────────────────────────────────
+
 
 @traceable(name="notification_dispatcher")
 async def dispatch_proximity_alerts(

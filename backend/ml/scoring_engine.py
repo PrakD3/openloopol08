@@ -15,40 +15,38 @@ can show Vertex AI / Groq Vision individually.
 from __future__ import annotations
 
 import hashlib
-import math
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 # ---------------------------------------------------------------------------
 # Constraint definitions
 # ---------------------------------------------------------------------------
 
-DEEPFAKE_CONSTRAINTS: List[str] = [
-    "no_gan_artifacts",         # No GAN/diffusion artifacts in keyframes
-    "consistent_lighting",      # Lighting consistent across frames
-    "av_sync_intact",           # Audio-visual sync verified
-    "natural_motion_blur",      # Natural motion blur present
-    "temporal_consistency",     # No temporal frame jumps / duplications
-    "natural_pixel_variance",   # Pixel variance in expected range
-    "no_synthetic_audio",       # Audio waveform is not synthesised
+DEEPFAKE_CONSTRAINTS: list[str] = [
+    "no_gan_artifacts",  # No GAN/diffusion artifacts in keyframes
+    "consistent_lighting",  # Lighting consistent across frames
+    "av_sync_intact",  # Audio-visual sync verified
+    "natural_motion_blur",  # Natural motion blur present
+    "temporal_consistency",  # No temporal frame jumps / duplications
+    "natural_pixel_variance",  # Pixel variance in expected range
+    "no_synthetic_audio",  # Audio waveform is not synthesised
 ]
 
-SOURCE_CONSTRAINTS: List[str] = [
-    "exif_metadata_present",    # EXIF metadata embedded
-    "gps_coordinates_valid",    # GPS coordinates present & internally consistent
-    "verified_news_source",     # Earliest source is a known/trusted outlet
-    "date_matches_event",       # Upload date consistent with claimed event
-    "no_conflicting_uploads",   # No prior upload found with different context
-    "trusted_channel",          # Uploading channel verified / high credibility
+SOURCE_CONSTRAINTS: list[str] = [
+    "exif_metadata_present",  # EXIF metadata embedded
+    "gps_coordinates_valid",  # GPS coordinates present & internally consistent
+    "verified_news_source",  # Earliest source is a known/trusted outlet
+    "date_matches_event",  # Upload date consistent with claimed event
+    "no_conflicting_uploads",  # No prior upload found with different context
+    "trusted_channel",  # Uploading channel verified / high credibility
 ]
 
-CONTEXT_CONSTRAINTS: List[str] = [
-    "language_matches_location",   # Audio/OCR language matches claimed location
-    "architecture_matches",        # Architecture style consistent with location
-    "weather_matches_history",     # Weather conditions match historical records
-    "ocr_text_consistent",         # On-screen text consistent with claimed context
-    "terrain_geography_matches",   # Terrain / geography matches location
-    "no_synthetic_speech",         # Speech is natural, not synthesised
+CONTEXT_CONSTRAINTS: list[str] = [
+    "language_matches_location",  # Audio/OCR language matches claimed location
+    "architecture_matches",  # Architecture style consistent with location
+    "weather_matches_history",  # Weather conditions match historical records
+    "ocr_text_consistent",  # On-screen text consistent with claimed context
+    "terrain_geography_matches",  # Terrain / geography matches location
+    "no_synthetic_speech",  # Speech is natural, not synthesised
 ]
 
 # ---------------------------------------------------------------------------
@@ -61,15 +59,15 @@ CONTEXT_CONSTRAINTS: List[str] = [
 #   so the engine is more suspicious when the deepfake score is mid-range.
 # source_weight / context_weight: scaling factors applied before blending.
 
-DISASTER_SIGNATURES: Dict[str, Dict] = {
+DISASTER_SIGNATURES: dict[str, dict] = {
     "flood": {
-        "deepfake_susceptibility": 0.18,   # Floods moderately easy to AI-generate
+        "deepfake_susceptibility": 0.18,  # Floods moderately easy to AI-generate
         "source_weight": 1.05,
         "context_weight": 1.00,
         "typical_panic": (5, 8),
     },
     "earthquake": {
-        "deepfake_susceptibility": 0.08,   # Camera shake / rubble hard to fake
+        "deepfake_susceptibility": 0.08,  # Camera shake / rubble hard to fake
         "source_weight": 1.00,
         "context_weight": 1.10,
         "typical_panic": (6, 9),
@@ -81,7 +79,7 @@ DISASTER_SIGNATURES: Dict[str, Dict] = {
         "typical_panic": (6, 9),
     },
     "tsunami": {
-        "deepfake_susceptibility": 0.28,   # Dramatic visuals; common in AI videos
+        "deepfake_susceptibility": 0.28,  # Dramatic visuals; common in AI videos
         "source_weight": 1.15,
         "context_weight": 0.95,
         "typical_panic": (7, 10),
@@ -110,51 +108,53 @@ DISASTER_SIGNATURES: Dict[str, Dict] = {
 # Result dataclasses
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ModelScore:
     model_name: str
-    authentic_pct: float     # 0-100  (100 = definitely authentic)
-    fake_pct: float          # 0-100  (100 = definitely fake)
-    confidence: float        # 0-100  (how confident is this model)
+    authentic_pct: float  # 0-100  (100 = definitely authentic)
+    fake_pct: float  # 0-100  (100 = definitely fake)
+    confidence: float  # 0-100  (how confident is this model)
 
 
 @dataclass
 class DeepfakeScoringResult:
-    fake_score: float                         # 0-100 (higher = more likely fake)
-    authentic_score: float                    # 0-100 (complement)
-    model_scores: List[ModelScore] = field(default_factory=list)
+    fake_score: float  # 0-100 (higher = more likely fake)
+    authentic_score: float  # 0-100 (complement)
+    model_scores: list[ModelScore] = field(default_factory=list)
     constraints_satisfied: int = 0
     total_constraints: int = len(DEEPFAKE_CONSTRAINTS)
-    constraint_details: Dict[str, bool] = field(default_factory=dict)
+    constraint_details: dict[str, bool] = field(default_factory=dict)
 
 
 @dataclass
 class SourceScoringResult:
-    authenticity_score: float                 # 0-100 (higher = more authentic source)
+    authenticity_score: float  # 0-100 (higher = more authentic source)
     constraints_satisfied: int = 0
     total_constraints: int = len(SOURCE_CONSTRAINTS)
-    constraint_details: Dict[str, bool] = field(default_factory=dict)
+    constraint_details: dict[str, bool] = field(default_factory=dict)
 
 
 @dataclass
 class ContextScoringResult:
-    match_score: float                        # 0-100 (higher = better context match)
+    match_score: float  # 0-100 (higher = better context match)
     constraints_satisfied: int = 0
     total_constraints: int = len(CONTEXT_CONSTRAINTS)
-    constraint_details: Dict[str, bool] = field(default_factory=dict)
+    constraint_details: dict[str, bool] = field(default_factory=dict)
 
 
 @dataclass
 class FinalVerdictScores:
-    credibility_score: int          # 0-100
-    panic_index: int                # 0-10
-    verdict: str                    # real / misleading / ai-generated / unverified
+    credibility_score: int  # 0-100
+    panic_index: int  # 0-10
+    verdict: str  # real / misleading / ai-generated / unverified
     disaster_type: str
 
 
 # ---------------------------------------------------------------------------
 # Core engine
 # ---------------------------------------------------------------------------
+
 
 class DisasterScoringEngine:
     """
@@ -170,14 +170,14 @@ class DisasterScoringEngine:
 
     CONSTRAINT_WEIGHT = 0.60
     ML_WEIGHT = 0.40
-    MAX_NOISE = 3.5   # ± max noise added for realism
+    MAX_NOISE = 3.5  # ± max noise added for realism
 
     def __init__(self, job_id: str, disaster_type: str = "unknown"):
         self.job_id = job_id
         self.disaster_type = disaster_type if disaster_type in DISASTER_SIGNATURES else "unknown"
         self.sig = DISASTER_SIGNATURES[self.disaster_type]
         # Deterministic noise seed from job_id so results are reproducible
-        self._seed = int(hashlib.md5(job_id.encode()).hexdigest(), 16) % (10 ** 8)
+        self._seed = int(hashlib.md5(job_id.encode()).hexdigest(), 16) % (10**8)
 
     # ------------------------------------------------------------------
     # Public API
@@ -185,18 +185,16 @@ class DisasterScoringEngine:
 
     def score_deepfake(
         self,
-        constraint_values: Dict[str, bool],
-        api_fake_score: Optional[float] = None,   # raw % from cloud detector (0-100)
+        constraint_values: dict[str, bool],
+        api_fake_score: float | None = None,  # raw % from cloud detector (0-100)
     ) -> DeepfakeScoringResult:
         """
         Returns fake_score (0-100).  Lower = more authentic.
         """
-        satisfied, total, details = self._eval_constraints(
-            DEEPFAKE_CONSTRAINTS, constraint_values
-        )
+        satisfied, total, details = self._eval_constraints(DEEPFAKE_CONSTRAINTS, constraint_values)
         # Authentic fraction drives this score (inverted for fake)
         authentic_fraction = satisfied / total
-        constraint_authentic = authentic_fraction * 100   # 0-100 authentic
+        constraint_authentic = authentic_fraction * 100  # 0-100 authentic
 
         # ML base score: if API returned something, trust it; otherwise 0 (no data)
         if api_fake_score is not None:
@@ -208,8 +206,7 @@ class DisasterScoringEngine:
 
         # Blend
         final_authentic = (
-            self.CONSTRAINT_WEIGHT * constraint_authentic
-            + self.ML_WEIGHT * ml_authentic_base
+            self.CONSTRAINT_WEIGHT * constraint_authentic + self.ML_WEIGHT * ml_authentic_base
         )
         final_authentic = self._add_noise(final_authentic, seed_offset=1)
         final_authentic = self._clamp(final_authentic)
@@ -229,15 +226,13 @@ class DisasterScoringEngine:
 
     def score_source(
         self,
-        constraint_values: Dict[str, bool],
-        api_source_score: Optional[float] = None,
+        constraint_values: dict[str, bool],
+        api_source_score: float | None = None,
     ) -> SourceScoringResult:
         """
         Returns authenticity_score (0-100).  Higher = more credible source.
         """
-        satisfied, total, details = self._eval_constraints(
-            SOURCE_CONSTRAINTS, constraint_values
-        )
+        satisfied, total, details = self._eval_constraints(SOURCE_CONSTRAINTS, constraint_values)
         constraint_score = (satisfied / total) * 100
 
         if api_source_score is not None:
@@ -245,10 +240,9 @@ class DisasterScoringEngine:
         else:
             ml_base = 0.0
 
-        final = (
-            self.CONSTRAINT_WEIGHT * constraint_score
-            + self.ML_WEIGHT * ml_base
-        ) * self.sig["source_weight"]
+        final = (self.CONSTRAINT_WEIGHT * constraint_score + self.ML_WEIGHT * ml_base) * self.sig[
+            "source_weight"
+        ]
         final = self._add_noise(final, seed_offset=2)
         final = self._clamp(final)
 
@@ -261,15 +255,13 @@ class DisasterScoringEngine:
 
     def score_context(
         self,
-        constraint_values: Dict[str, bool],
-        api_context_score: Optional[float] = None,
+        constraint_values: dict[str, bool],
+        api_context_score: float | None = None,
     ) -> ContextScoringResult:
         """
         Returns match_score (0-100).  Higher = better context / location match.
         """
-        satisfied, total, details = self._eval_constraints(
-            CONTEXT_CONSTRAINTS, constraint_values
-        )
+        satisfied, total, details = self._eval_constraints(CONTEXT_CONSTRAINTS, constraint_values)
         constraint_score = (satisfied / total) * 100
 
         if api_context_score is not None:
@@ -277,10 +269,9 @@ class DisasterScoringEngine:
         else:
             ml_base = 0.0
 
-        final = (
-            self.CONSTRAINT_WEIGHT * constraint_score
-            + self.ML_WEIGHT * ml_base
-        ) * self.sig["context_weight"]
+        final = (self.CONSTRAINT_WEIGHT * constraint_score + self.ML_WEIGHT * ml_base) * self.sig[
+            "context_weight"
+        ]
         final = self._add_noise(final, seed_offset=3)
         final = self._clamp(final)
 
@@ -296,22 +287,20 @@ class DisasterScoringEngine:
         deepfake: DeepfakeScoringResult,
         source: SourceScoringResult,
         context: ContextScoringResult,
-        llm_credibility: Optional[int] = None,
-        llm_verdict: Optional[str] = None,
+        llm_credibility: int | None = None,
+        llm_verdict: str | None = None,
     ) -> FinalVerdictScores:
         """
         Synthesise agent scores into final credibility score, panic index and verdict.
         Weight: DeepFake 40% | Source 35% | Context 25%
         """
         # Credibility components (0-100 each, higher = more credible)
-        deepfake_credibility = deepfake.authentic_score               # 0-100
-        source_credibility   = source.authenticity_score             # 0-100
-        context_credibility  = context.match_score                   # 0-100
+        deepfake_credibility = deepfake.authentic_score  # 0-100
+        source_credibility = source.authenticity_score  # 0-100
+        context_credibility = context.match_score  # 0-100
 
         computed_credibility = (
-            0.40 * deepfake_credibility
-            + 0.35 * source_credibility
-            + 0.25 * context_credibility
+            0.40 * deepfake_credibility + 0.35 * source_credibility + 0.25 * context_credibility
         )
 
         # Blend with LLM credibility if available
@@ -353,11 +342,11 @@ class DisasterScoringEngine:
 
     @staticmethod
     def _eval_constraints(
-        constraint_list: List[str],
-        provided: Dict[str, bool],
+        constraint_list: list[str],
+        provided: dict[str, bool],
     ):
         """Count True values; default missing keys to True (benefit of doubt)."""
-        details: Dict[str, bool] = {}
+        details: dict[str, bool] = {}
         for c in constraint_list:
             details[c] = provided.get(c, False)
         satisfied = sum(1 for v in details.values() if v)
@@ -366,8 +355,8 @@ class DisasterScoringEngine:
     def _noise(self, seed_offset: int = 0) -> float:
         """Deterministic noise in [-1, 1]."""
         h = hashlib.md5(f"{self._seed}:{seed_offset}".encode()).hexdigest()
-        raw = int(h[:8], 16) / (16 ** 8)   # 0..1
-        return (raw - 0.5) * 2             # -1..1
+        raw = int(h[:8], 16) / (16**8)  # 0..1
+        return (raw - 0.5) * 2  # -1..1
 
     def _add_noise(self, value: float, seed_offset: int = 0) -> float:
         return value + self._noise(seed_offset) * self.MAX_NOISE
@@ -379,15 +368,14 @@ class DisasterScoringEngine:
     def _generate_model_scores(
         self,
         final_fake: float,
-        api_score: Optional[float],
-    ) -> List[ModelScore]:
+        api_score: float | None,
+    ) -> list[ModelScore]:
         """Generate per-model scores with small deterministic variation."""
         n1 = self._noise(seed_offset=10)
         n2 = self._noise(seed_offset=11)
-        n3 = self._noise(seed_offset=12)
 
-        cev_fake  = self._clamp(final_fake + n1 * 3.0)
-        ufd_fake  = self._clamp(final_fake + n2 * 4.5)
+        cev_fake = self._clamp(final_fake + n1 * 3.0)
+        ufd_fake = self._clamp(final_fake + n2 * 4.5)
 
         return [
             ModelScore(
@@ -422,6 +410,7 @@ class DisasterScoringEngine:
 # ---------------------------------------------------------------------------
 # Module-level helper used by agent nodes
 # ---------------------------------------------------------------------------
+
 
 def build_engine(job_id: str, disaster_type: str = "unknown") -> DisasterScoringEngine:
     return DisasterScoringEngine(job_id=job_id, disaster_type=disaster_type)

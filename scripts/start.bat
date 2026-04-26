@@ -20,16 +20,16 @@ echo  Vigilens - Startup (Cloud Mode)
 echo ============================================================
 echo.
 
-rem --- Read .env to get key settings ---
-if not exist ".env" (
-    echo [ERROR] No .env file found in project root.
-    echo         Please copy backend\.env.example to .env and fill in your keys.
+rem --- Read .env from backend folder ---
+if not exist "backend\.env" (
+    echo [ERROR] No .env file found in backend folder.
+    echo         Please copy backend\.env.example to backend\.env and fill in your keys.
     pause
     exit /b 1
 )
 
-rem Use PowerShell to read .env
-for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "Get-Content '.env' | Where-Object { $_ -notmatch '^\s*#' -and $_ -match '=' } | ForEach-Object { $_.Trim() }"`) do (
+rem Use PowerShell to read backend\.env
+for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "Get-Content 'backend\.env' | Where-Object { $_ -notmatch '^\s*#' -and $_ -match '=' } | ForEach-Object { $_.Trim() }"`) do (
     set "%%A"
 )
 
@@ -63,7 +63,7 @@ if not exist "backend\.venv" (
     exit /b 1
 )
 
-start "Vigilens Backend" cmd /k "cd backend && call .venv\Scripts\activate && set PYTHONUNBUFFERED=1 && python -m uvicorn api.main:app --host 127.0.0.1 --port 8888"
+start "Vigilens Backend" cmd /k "cd backend && call .venv\Scripts\activate && set PYTHONUNBUFFERED=1 && python -m uvicorn api.main:app --host 127.0.0.1 --port 8000"
 
 echo       Backend window opened. Waiting 5 seconds...
 timeout /t 5 >nul
@@ -84,7 +84,7 @@ echo ============================================================
 echo  Vigilens is booting up!
 echo ============================================================
 echo  Frontend : http://localhost:3000
-echo  Backend  : http://127.0.0.1:8888
+echo  Backend  : http://127.0.0.1:8000
 echo ============================================================
 echo.
 echo  Check the two new terminal windows for live logs.

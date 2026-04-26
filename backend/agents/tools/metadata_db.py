@@ -2,7 +2,7 @@
 
 import json
 import subprocess
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 
 def extract_video_metadata(video_path: str) -> Dict:
@@ -24,7 +24,8 @@ def extract_video_metadata(video_path: str) -> Dict:
         )
         if result.returncode == 0:
             data = json.loads(result.stdout)
-            return data[0] if data else {}
+            if isinstance(data, list) and data:
+                return dict(data[0])
     except Exception:
         pass
     return {}

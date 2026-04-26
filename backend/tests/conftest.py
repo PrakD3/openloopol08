@@ -2,7 +2,7 @@
 
 import pytest
 
-from ..config.settings import settings
+from config.settings import settings
 
 
 @pytest.fixture(autouse=True)

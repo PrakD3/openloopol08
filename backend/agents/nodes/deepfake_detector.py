@@ -36,7 +36,6 @@ async def _vertex_vision_detect(state: AgentState) -> AgentFinding:
 
     valid_results = []
     try:
-
         llm = get_llm(model=settings.gemini_model)
 
         async def process_frame(frame_path):
@@ -55,10 +54,10 @@ async def _vertex_vision_detect(state: AgentState) -> AgentFinding:
 
                 prompt = """
                 Identify whether this image is a GENUINE real-world photograph or an AI-GENERATED/MANIPULATED image.
-                
+
                 Authenticity Indicators: Natural lighting, lens grain, physical consistency, real-world logos.
                 Manipulation Indicators: Surreal textures, impossible geometry, digital artifacts.
-                
+
                 Respond ONLY in JSON format:
                 {
                   "is_real_photograph": true | false,
@@ -92,7 +91,7 @@ async def _vertex_vision_detect(state: AgentState) -> AgentFinding:
                 return {
                     "is_ai_generated": not is_real,
                     "confidence_score": (1.0 - auth_score) if is_real else auth_score,
-                    "findings": data.get("findings", [])
+                    "findings": data.get("findings", []),
                 }
             except Exception as e:
                 print(f"[DeepFake/Vertex] Frame {frame_path} failed: {e}")
@@ -120,11 +119,18 @@ async def _vertex_vision_detect(state: AgentState) -> AgentFinding:
         agent_id="deepfake_detector",
         status="done",
         score=round(avg_score),
-        findings=_build_findings(max_score, avg_score, list(set(findings))[:3], source=f"Vertex AI ({settings.gemini_model})"),
+        findings=_build_findings(
+            max_score,
+            avg_score,
+            list(set(findings))[:3],
+            source=f"Vertex AI ({settings.gemini_model})",
+        ),
         detail=json.dumps({"source": "vertex_ai", "scores": scores}),
     )
 
+
 # ── Heuristic Fallback ────────────────────────────────────────────────────────
+
 
 async def _heuristic_detect(state: AgentState) -> AgentFinding:
     """Basic pixel-variance fallback."""
@@ -149,13 +155,20 @@ async def _heuristic_detect(state: AgentState) -> AgentFinding:
         agent_id="deepfake_detector",
         status="done",
         score=round(avg_score),
-        findings=["Detection source: Heuristic Fallback", "⚠️ Cloud APIs unavailable — using pixel-variance analysis."],
+        findings=[
+            "Detection source: Heuristic Fallback",
+            "⚠️ Cloud APIs unavailable — using pixel-variance analysis.",
+        ],
         detail=json.dumps({"source": "heuristic", "scores": scores}),
     )
 
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _build_findings(max_score: float, avg_score: float, flagged: list[str], source: str) -> list[str]:
+
+def _build_findings(
+    max_score: float, avg_score: float, flagged: list[str], source: str
+) -> list[str]:
     res = [f"Detection source: {source}"]
     if avg_score >= 80:
         res.append(f"High probability of AI generation ({avg_score:.0f}%)")
@@ -166,16 +179,20 @@ def _build_findings(max_score: float, avg_score: float, flagged: list[str], sour
     res.extend(flagged)
     return res
 
+
 def _error_finding(message: str) -> AgentFinding:
-    return AgentFinding(agent_id="deepfake_detector", status="error", score=None, findings=[message], detail=None)
+    return AgentFinding(
+        agent_id="deepfake_detector", status="error", score=None, findings=[message], detail=None
+    )
+
 
 # ── Main Entry ────────────────────────────────────────────────────────────────
+
 
 @traceable(name="deepfake_detector")
 async def deepfake_detector_node(state: AgentState) -> AgentFinding:
     """Main node entry point (Online Only)."""
     print("\n[AGENT] deepfake_detector: Started cloud analysis...")
-
 
     # 2. Vertex AI (if credits)
     if settings.google_cloud_project:

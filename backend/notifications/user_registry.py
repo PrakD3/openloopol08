@@ -10,14 +10,13 @@ Users register by:
   4. POST /api/register-location from Next.js API route
 """
 
-from typing import Dict, Optional
 from notifications.geofence import UserLocation
 
 # In-memory store: user_id → UserLocation
-_registry: Dict[str, UserLocation] = {}
+_registry: dict[str, UserLocation] = {}
 
 
-def register_user(user_id: str, phone: str, lat: float, lon: float, area: Optional[str] = None):
+def register_user(user_id: str, phone: str, lat: float, lon: float, area: str | None = None):
     """Register or update a user's location."""
     _registry[user_id] = UserLocation(
         user_id=user_id,

@@ -5,12 +5,14 @@ from notifications.user_registry import register_user
 
 router = APIRouter()
 
+
 class LocationRegistration(BaseModel):
     user_id: str
     phone: str
     lat: float
     lon: float
     area: str = ""
+
 
 @router.post("/register-location")
 async def register_location(data: LocationRegistration):

@@ -230,7 +230,8 @@ async def _run_subprocess(cmd: list[str], timeout: int = 60) -> tuple[int, str, 
         stderr=asyncio.subprocess.PIPE,
     )
     stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-    return proc.returncode, stdout.decode(errors="replace"), stderr.decode(errors="replace")
+    returncode = proc.returncode if proc.returncode is not None else -1
+    return returncode, stdout.decode(errors="replace"), stderr.decode(errors="replace")
 
 
 async def _resolve_url(url: str, audio_only: bool = False) -> str:

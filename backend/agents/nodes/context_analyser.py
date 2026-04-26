@@ -29,7 +29,7 @@ from langsmith import traceable
 from PIL import Image
 
 from agents.state import AgentFinding, AgentState
-from config.settings import get_llm, is_deprecated_groq_model, settings
+from config.settings import get_llm, settings
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +201,7 @@ async def _extract_ocr_text_online(keyframes: list[str]) -> str:
 
             response = await asyncio.wait_for(llm.ainvoke([message]), timeout=30.0)
             text = response.content.strip()
-            
+
             if text and text != "[no text detected]":
                 all_text_chunks.append(text)
                 logger.info(f"[OCR] Frame {Path(frame_path).name}: extracted {len(text)} chars")
@@ -414,7 +414,7 @@ async def _analyse_context_with_llm(
     try:
         # Use centralized LLM factory (Vertex AI first)
         llm = get_llm(settings.gemini_model)
-        
+
         gdacs_summary = json.dumps(
             [
                 {
@@ -446,9 +446,12 @@ async def _analyse_context_with_llm(
             img.save(buffer, format="JPEG", quality=85)
             encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-            print(f"[Context/LLM] Using Vertex Gemini ({settings.gemini_model}) for vision analysis...")
-            
+            print(
+                f"[Context/LLM] Using Vertex Gemini ({settings.gemini_model}) for vision analysis..."
+            )
+
             from langchain_core.messages import HumanMessage
+
             message = HumanMessage(
                 content=[
                     {"type": "text", "text": prompt_text},
@@ -462,7 +465,9 @@ async def _analyse_context_with_llm(
             content = response.content if hasattr(response, "content") else str(response)
         else:
             # Standard text-only invocation
-            print(f"[Context/LLM] Using Vertex Gemini ({settings.gemini_model}) for text analysis...")
+            print(
+                f"[Context/LLM] Using Vertex Gemini ({settings.gemini_model}) for text analysis..."
+            )
             response = await llm.ainvoke(prompt_text)
             content = response.content if hasattr(response, "content") else str(response)
 
